@@ -32,7 +32,9 @@
     "yargs": "^11.0.0"
   },
   "devDependencies": {
-    "eslint": "^4.10.0",
+    "babel-eslint": "^8.2.2",
+    "eslint": "^4.18.2",
+    "eslint-plugin-html": "^3.2.2",
     "tape": "^4.8.0"
   },
   "bin": {

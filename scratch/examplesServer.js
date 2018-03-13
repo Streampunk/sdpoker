@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /* Copyright 2018 Streampunk Media Ltd.
 
   Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,25 +13,13 @@
   limitations under the License.
 */
 
-const { getSDP, checkRFC } = require('./index.js');
-const yargs = require('yargs');
+const express = require('express');
+const app = express();
 
-const args = yargs
-  .help('help')
-  .default('nmos', true)
-  .boolean([ 'nmos' ])
-  .describe('nmos', 'Check for compliance with NMOS rules.')
-  .argv;
+app.get('/st2110-10.not', (req, res, next) => {
+  res.set('Content-Type', 'application/sdp');
+  next();
+});
+app.use(express.static(__dirname + '/../examples'));
 
-console.log(args);
-
-async function test (args) {
-  try {
-    let sdp = await getSDP(args._[0], args.nmos);
-    console.log(checkRFC(sdp));
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-test(args);
+app.listen(3456, () => console.log('Example SDP server listening on port 3456.'));
