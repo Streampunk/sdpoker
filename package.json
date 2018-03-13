@@ -1,0 +1,41 @@
+{
+  "name": "sdpoker",
+  "version": "0.0.1",
+  "description": "CLI tool and library for testing SMPTE ST2110 files.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint **/*.js",
+    "lint-html": "eslint **/*.js -f html -o ./reports/lint-results.html",
+    "lint-fix": "eslint --fix **/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Streampunk/sdpoker.git"
+  },
+  "keywords": [
+    "SDP",
+    "SMPTE",
+    "ST2110",
+    "NMOS"
+  ],
+  "author": "Streampunk Media <furnace@streampunk.media> (http://www.streampunk.media)",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Streampunk/sdpoker/issues"
+  },
+  "homepage": "https://github.com/Streampunk/sdpoker#readme",
+  "dependencies": {
+    "express": "^4.16.3",
+    "request": "^2.85.0",
+    "request-promise-native": "^1.0.5",
+    "yargs": "^11.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^4.10.0",
+    "tape": "^4.8.0"
+  },
+  "bin": {
+    "sdpoker": "./sdpoker.js"
+  }
+}
