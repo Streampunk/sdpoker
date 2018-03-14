@@ -23,12 +23,14 @@ const args = yargs
   .default('nmos', true)
   .default('checkEndings', false)
   .default('should', false)
-  .boolean([ 'nmos', 'checkEndings', 'should' ])
+  .default('noCopy', true)
+  .boolean([ 'nmos', 'checkEndings', 'should', 'noCopy' ])
   .usage('Check an SDP file for conformance with RFC4566 and SMPTE ST 2110.\n' +
     'Usage: $0 [options] <sdp_file or HTTP URL>')
   .describe('nmos', 'Check for compliance with NMOS rules.')
   .describe('checkEndings', 'Check line endings are CRLF, no other CR/LF.')
   .describe('should', 'As well as shall, also check all should clauses .')
+  .describe('noCopy', 'Fail obvious copies of the ST 2110-10 SDP example')
   .check(argv => {
     if (!argv._[0].startsWith('http')) {
       accessSync(argv._[0], R_OK);
@@ -42,8 +44,10 @@ console.log(args);
 async function test (args) {
   try {
     let sdp = await getSDP(args._[0], args.nmos);
-    let errors = checkRFC4566(sdp, args);
-    errors.concat(checkST2110(sdp, args));
+    let rfcErrors = checkRFC4566(sdp, args);
+    let st2110Errors = checkST2110(sdp, args);
+    debugger;
+    let errors = rfcErrors.concat(st2110Errors);
     if (errors.length !== 0) {
       console.error(errors);
       process.exit(1);
