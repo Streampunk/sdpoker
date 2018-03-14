@@ -14,14 +14,27 @@
   limitations under the License.
 */
 
-const { getSDP, checkRFC } = require('./index.js');
+const { getSDP, checkRFC4566, checkST2110 } = require('./index.js');
 const yargs = require('yargs');
+const { accessSync, R_OK } = require('fs');
 
 const args = yargs
   .help('help')
   .default('nmos', true)
-  .boolean([ 'nmos' ])
+  .default('checkEndings', false)
+  .default('should', false)
+  .boolean([ 'nmos', 'checkEndings', 'should' ])
+  .usage('Check an SDP file for conformance with RFC4566 and SMPTE ST 2110.\n' +
+    'Usage: $0 [options] <sdp_file or HTTP URL>')
   .describe('nmos', 'Check for compliance with NMOS rules.')
+  .describe('checkEndings', 'Check line endings are CRLF, no other CR/LF.')
+  .describe('should', 'As well as shall, also check all should clauses .')
+  .check(argv => {
+    if (!argv._[0].startsWith('http')) {
+      accessSync(argv._[0], R_OK);
+    }
+    return true;
+  })
   .argv;
 
 console.log(args);
@@ -29,7 +42,14 @@ console.log(args);
 async function test (args) {
   try {
     let sdp = await getSDP(args._[0], args.nmos);
-    console.log(checkRFC(sdp));
+    let errors = checkRFC4566(sdp, args);
+    errors.concat(checkST2110(sdp, args));
+    if (errors.length !== 0) {
+      console.error(errors);
+      process.exit(1);
+    } else {
+      process.exit(0);
+    }
   } catch (e) {
     console.error(e);
   }
