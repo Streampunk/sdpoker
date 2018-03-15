@@ -16,11 +16,15 @@
 const splitLines = sdp => sdp.match(/[^\r\n]+/g);
 const concat = arrays => Array.prototype.concat.apply([], arrays);
 
-const mediaclkPattern = /m=[\s\S]+a=mediaclk/;
+const mediaclkPattern = /[\r\n]a=mediaclk/;
 const mediaclkDirectPattern = /a=mediaclk[^\s=]+/g;
-const tsrefclkPattern = /m=[\s\S]+a=ts-refclk/;
+const tsrefclkPattern = /[\r\n]a=ts-refclk/;
 const ptpPattern = /(([0-9a-fA-F]{2}-){7}[0-9a-fA-F]{2})(:(\d+|domain-name=\S+))?/;
 const macPattern = /(([0-9a-fA-F]{2}-){5}[0-9a-fA-F]{2})/;
+const dupPattern = /m=[\s\S]+a=ssrc-group:DUP|a=group:DUP[\s\S]+m=/;
+const ssrcGroupPattern = /a=ssrc-group:DUP\s+(\d+)\s+(\d+)/;
+const groupPattern = /a=group:DUP\s+(\S+)\s+(\S+)/;
+const ssrcPattern = /a=ssrc:(\d+)\s/;
 
 const specExample = `v=0
 o=- 123456 11 IN IP4 192.168.100.2
@@ -46,10 +50,16 @@ a=ts-refclk:ptp=IEEE1588-2008:39-A7-94-FF-FE-07-CB-D0:37
 a=mediaclk:direct=0
 a=mid:secondary`;
 
-// Test ST2110-10 Section 8.1 Test 1 - Shell have media-level mediaclk
+// Test ST2110-10 Section 8.1 Test 1 - Shell have media-level mediaclk per stream
 const test_10_81_1 = sdp => {
-  return mediaclkPattern.test(sdp) ? [] :
-    [ new Error('Stream description shall have a media-level \'mediaclk\' attribute, as per SMPTE ST 2110-10 Section 8.1.') ];
+  let errors = [];
+  let streams = sdp.split(/[\r\n]m=/).slice(1);
+  for ( let x = 0 ; x < streams.length ; x++ ) {
+    if (!mediaclkPattern.test(sdp)) {
+      errors.push(new Error(`Stream ${x + 1}: Each stream description shall have a media-level 'mediaclk' attribute, as per SMPTE ST 2110-10 Section 8.1.`));
+    }
+  }
+  return errors;
 };
 
 // Test ST2110-10 Section 8.1 Test 2 - Should have mediaclk using direct reference
@@ -69,8 +79,14 @@ const test_10_81_2 = (sdp, params) => {
 
 // Test ST2110-10 Section 8.1 Test 1 - Shall have a media-level ts-refclk
 const test_10_82_1 = sdp => {
-  return tsrefclkPattern.test(sdp) ? [] :
-    [ new Error('Stream description shall have a media-level \'ts-refclk\' attribute, as per SMPTE ST 2110-10 Section 8.2.')];
+  let errors = [];
+  let streams = sdp.split(/[\r\n]m=/).slice(1);
+  for ( let x = 0 ; x < streams.length ; x++ ) {
+    if (!tsrefclkPattern.test(sdp)) {
+      errors.push(new Error(`Stream ${x + 1}: Stream descriptions shall have a media-level 'ts-refclk' attribute, as per SMPTE ST 2110-10 Section 8.2.`));
+    }
+  }
+  return errors;
 };
 
 // Test ST2110-10 Section 8.2 Test 2 - Shall be ptp reference or shall be localmac
@@ -161,6 +177,113 @@ const test_10_82_4 = sdp => {
   return errors;
 };
 
+// Test ST 2110-10 Section 8.3 Test 1 - Duplication expected, is it present?
+const test_10_83_1 = (sdp, params) => {
+  if (!params.duplicate) {
+    return [];
+  }
+  return dupPattern.test(sdp) ? [] :
+    [ new Error('Duplicate RTP streams are expected, but neither media-level \'ssrc-group:DUP\' or session-level \'group:DUP\' were found, to satisfy SMPTE ST 2110-10 Section 8.3.') ];
+};
+
+// Test ST 2110-10 Section 8.3 Test 2 - Separate source addresses - RFC 7104 section 4.1
+const test_10_83_2 = sdp => {
+  if (!sdp.match(/a=ssrc-group/)) { // Detect whether this test applies
+    return [];
+  }
+  let lines = splitLines(sdp);
+  let errors = [];
+  let ssrcs = [ [] ];
+  let streamCounter = 0;
+  for ( let x = 0 ; x < lines.length ; x++ ) { // Order of ssrc and ssrc-group nor defined ...
+    if (lines[x].startsWith('m=')) {
+      streamCounter++;
+      ssrcs.push([]);
+    }
+    if (lines[x].startsWith('a=ssrc:')) {
+      let ssrcMatch = lines[x].match(ssrcPattern);
+      if (!ssrcMatch) {
+        errors.push(new Error(`Line ${x + 1}: Found an SSRC line with group reference to a non-integer value, which is noe possible according to RFC 7104.`));
+        continue;
+      }
+      ssrcs[streamCounter].push(+ssrcMatch[1]);
+    }
+  }
+  streamCounter = 0;
+  for ( let x = 0 ; x < lines.length ; x++ ) { // .. so iterate twice
+    if (lines[x].startsWith('m=')) {
+      streamCounter++;
+    }
+    if (!lines[x].startsWith('a=ssrc-group') || (streamCounter === 0)) {
+      continue;
+    }
+    let groupMatch = lines[x].match(ssrcGroupPattern);
+    if (!groupMatch) {
+      errors.push(new Error(`Line ${x + 1}: Separate source address grouping is not an acceptable pattern, with reference to RFC 7104.`));
+      continue;
+    }
+    for ( let groupID of groupMatch.slice(1, 3)) {
+      if (ssrcs[streamCounter].indexOf(+groupID) < 0) {
+        errors.push(new Error(`Line ${x + 1}: Reference to non existant source-level attribute ${groupID} within stream ${streamCounter}.`));
+      }
+    }
+  }
+  // TODO check the source-filter lines have one Mcast address and 2 IP addresses
+  return errors;
+};
+
+// Test ST 2110-10 Section 8.3 Test 3 - Separate destination addresses - RFC 7104 Section 4.2
+const test_10_83_3 = sdp => {
+  if (!sdp.match(/a=group/)) {
+    return [];
+  }
+  let lines = splitLines(sdp);
+  let errors = [];
+  let mids = [];
+  let streamCounter = 0;
+  for ( let x = 0 ; x < lines.length ; x++ ) {
+    if (lines[x].startsWith('m=')) {
+      if (!mids[streamCounter++]) { mids.push(''); }
+    }
+    if (lines[x].startsWith('a=mid:')) {
+      let mid = lines[x].slice(6);
+      if (mids.indexOf(mid) >= 0) {
+        errors.push(new Error(`Line ${x + 1}: Duplicate media identification '${mid}' found which is not permitted by RFC 5888 Section 4.'`));
+        continue;
+      }
+      if (mids[streamCounter]) {
+        errors.push(new Error(`Line ${x + 1}: One stream with two media identifiers '${mid}' and '${mids[streamCounter]}'.`));
+        continue;
+      }
+      mids.push(mid);
+    }
+  }
+  let doneOne = false;
+  for ( let x = 0 ; x < lines.length ; x++ ) {
+    if (lines[x].startsWith('m=')) {
+      if (!doneOne) {
+        errors.push(new Error(`Got to line ${x + 1}, the end of session-level description, without finding the destination group, with reference to RFC 7104.`));
+      }
+      break;
+    }
+    if (!lines[x].startsWith('a=group')) {
+      continue;
+    }
+    let groupMatch = lines[x].match(groupPattern);
+    if (!groupMatch) {
+      errors.push(new Error(`Line ${x + 1}: Separate destination address grouping is not an acceptable pattern, with reference to RFC 7104.`));
+      continue;
+    }
+    doneOne = true;
+    for ( let groupId of groupMatch.slice(1, 3) ) {
+      if (mids.indexOf(groupId) < 0) {
+        errors.push(new Error(`Line ${x + 1}: Separate destination group reference '${groupId}' with no associated stream, with reference to RFC 7104.`));
+      }
+    }
+  }
+  return errors;
+};
+
 const section_10_81 = (sdp, params) => {
   let tests = [ test_10_81_1, test_10_81_2 ];
   return concat(tests.map(t => t(sdp, params)));
@@ -168,6 +291,11 @@ const section_10_81 = (sdp, params) => {
 
 const section_10_82 = (sdp, params) => {
   let tests = [ test_10_82_1, test_10_82_2, test_10_82_3, test_10_82_4 ];
+  return concat(tests.map(t => t(sdp, params)));
+};
+
+const section_10_83 = (sdp, params) => {
+  let tests = [ test_10_83_1, test_10_83_2, test_10_83_3 ];
   return concat(tests.map(t => t(sdp, params)));
 };
 
@@ -189,7 +317,7 @@ const no_copy = sdp => {
 };
 
 const allSections = (sdp, params) => {
-  let sections = [ section_10_81, section_10_82 ];
+  let sections = [ section_10_81, section_10_82, section_10_83 ];
   if (params.noCopy) {
     sections.push(no_copy);
   }
