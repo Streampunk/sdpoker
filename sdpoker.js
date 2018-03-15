@@ -25,7 +25,9 @@ const args = yargs
   .default('should', false)
   .default('noCopy', true)
   .default('duplicate', false)
-  .boolean([ 'nmos', 'checkEndings', 'should', 'noCopy', 'duplicate' ])
+  .default('videoOnly', false)
+  .boolean([ 'nmos', 'checkEndings', 'should', 'noCopy', 'duplicate',
+    'videoOnly' ])
   .usage('Check an SDP file for conformance with RFC4566 and SMPTE ST 2110.\n' +
     'Usage: $0 [options] <sdp_file or HTTP URL>')
   .describe('nmos', 'Check for compliance with NMOS rules.')
@@ -33,6 +35,7 @@ const args = yargs
   .describe('should', 'As well as shall, also check all should clauses.')
   .describe('noCopy', 'Fail obvious copies of the ST 2110-10 SDP example')
   .describe('duplicate', 'Expect duplicate streams.')
+  .describe('videoOnly', 'Describes only SMPTE ST 2110-20 streams.')
   .check(argv => {
     if (!argv._[0].startsWith('http')) {
       accessSync(argv._[0], R_OK);
@@ -50,7 +53,7 @@ async function test (args) {
     let st2110Errors = checkST2110(sdp, args);
     let errors = rfcErrors.concat(st2110Errors);
     if (errors.length !== 0) {
-      console.error(errors);
+      console.error(errors.map(e => e.message));
       process.exit(1);
     } else {
       process.exit(0);

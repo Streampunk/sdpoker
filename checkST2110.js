@@ -17,14 +17,16 @@ const splitLines = sdp => sdp.match(/[^\r\n]+/g);
 const concat = arrays => Array.prototype.concat.apply([], arrays);
 
 const mediaclkPattern = /[\r\n]a=mediaclk/;
-const mediaclkDirectPattern = /a=mediaclk[^\s=]+/g;
+const mediaclkDirectPattern = /[\r\n]a=mediaclk[^\s=]+/g;
 const tsrefclkPattern = /[\r\n]a=ts-refclk/;
 const ptpPattern = /(([0-9a-fA-F]{2}-){7}[0-9a-fA-F]{2})(:(\d+|domain-name=\S+))?/;
 const macPattern = /(([0-9a-fA-F]{2}-){5}[0-9a-fA-F]{2})/;
-const dupPattern = /m=[\s\S]+a=ssrc-group:DUP|a=group:DUP[\s\S]+m=/;
+const dupPattern = /[\r\n]m=[\s\S]+a=ssrc-group:DUP|^a=group:DUP[\s\S]+m=/;
 const ssrcGroupPattern = /a=ssrc-group:DUP\s+(\d+)\s+(\d+)/;
 const groupPattern = /a=group:DUP\s+(\S+)\s+(\S+)/;
 const ssrcPattern = /a=ssrc:(\d+)\s/;
+const videoPattern = /video\s+(\d+)(\/\d+)?\s+(RTP\/S?AVP)\s+(\d+)/;
+const rtpmapPattern = /a=rtpmap:(\d+)\s(\S+)\/(\d+)\s*/;
 
 const specExample = `v=0
 o=- 123456 11 IN IP4 192.168.100.2
@@ -281,6 +283,95 @@ const test_10_83_3 = sdp => {
       }
     }
   }
+  // TODO check the source-filter lines have one Mcast address and 2 IP addresses
+  return errors;
+};
+
+// Test ST 2110-20 Section 7.1 Test 1 - If required, check all streams are video
+const test_20_71_1 = (sdp, params) => {
+  let streams = sdp.split(/[\r\n]m=/);
+  let errors = [];
+  if (params.videoOnly) {
+    for ( let s = 1 ; s < streams.length ; s++ ) {
+      if (!streams[s].startsWith('video')) {
+        errors.push(new Error(`Stream ${s}: Media type is not 'video' and video only files are in test, as per SMPTE 2110-20 Section 7.1.`));
+      }
+    }
+  }
+  return errors;
+};
+
+// Test ST 2110-20 Section 7.1 Test 2 - For all video streams, check video params
+const test_20_71_2 = sdp => {
+  let errors = [];
+  let lines = splitLines(sdp);
+  for ( let x = 0 ; x < lines.length ; x++ ) {
+    if (!lines[x].startsWith('m=video')) {
+      continue;
+    }
+    let videoMatch = lines[x].match(videoPattern);
+    if (!videoMatch) {
+      errors.push(new Error(`Line ${x + 1}: Found a media description for video with a pattern that is not acceptable.`));
+      continue;
+    }
+    // Check port number - SMPTE 2110-10 Section 6.2 says shall be UDP, so assume 0-65535
+    let port = +videoMatch[1];
+    if (isNaN(port) || port < 0 || port > 65535) {
+      errors.push(new Error(`Line ${x + 1}: RTP video stream description with invalid port '${port}', with reference to ST 2110-10 Section 6.2 'shall use UDP'.`));
+    }
+    // Check RTP type - SMPTE 2110-10 Section 6.2 says shall be RTP, no allowance for SRTP
+    if (videoMatch[3] === 'RTP/SAVP') {
+      errors.push(new Error(`Line ${x + 1}: SRTP protocol is not allowed by SMPTE ST 2110-10 Section 6.2.`));
+    }
+    // Check dynamic range - assume 2110-20 is always dynamic
+    let payloadType = +videoMatch[4];
+    if (isNaN(payloadType) || payloadType < 96 || payloadType > 127) {
+      errors.push(new Error(`Line ${x + 1}: Dynamic payload type expected for SMPTE 2110-defined video.`));
+    }
+  }
+  return errors;
+};
+
+// Test ST 2110-20 Section 7.1 Test 3 - All video streams have rtpmap entry raw/90000
+const test_20_71_3 = sdp => {
+  let errors = [];
+  let lines = splitLines(sdp);
+  let rtpmapInStream = true;
+  let payloadType = -1;
+  let streamCount = 0;
+  for ( let x = 0 ; x < lines.length ; x++ ) {
+    if (lines[x].startsWith('m=')) {
+      if (!rtpmapInStream && payloadType >= 0) {
+        errors.push(new Error(`Line ${x + 1}: Stream ${streamCount} does not have an 'rtpmap' attribute.`));
+      }
+      let videoMatch = lines[x].match(videoPattern);
+      payloadType = videoMatch ? +videoMatch[4] : -1;
+      rtpmapInStream = false;
+      streamCount++;
+      continue;
+    }
+    if (lines[x].startsWith('a=rtpmap') && payloadType >= 0) { // Only process video
+      let rtpmapMatch = lines[x].match(rtpmapPattern);
+      if (!rtpmapMatch) {
+        errors.push(new Error(`Line ${x + 1}: Found an 'rtpmap' attribute that is not an acceptable pattern.`));
+        continue;
+      }
+      if (rtpmapInStream) {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, found more than one 'rtpmap' attribute.`));
+        continue;
+      }
+      rtpmapInStream = true;
+      if (+rtpmapMatch[1] !== payloadType) {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, found an 'rtpmap' attribute with payload type '${rtpmapMatch[1]}' when stream has payload type '${payloadType}'.`));
+      }
+      if (rtpmapMatch[2] !== 'raw' ) {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, encoding name must be media sub-type 'raw', as per SMPTE ST 2110-20 Section 7.1.`));
+      }
+      if (rtpmapMatch[3] !== '90000') {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, clock rate must be 90000Hz, as per SMPTE ST 2110-20 Section 7.1.`));
+      }
+    }
+  }
   return errors;
 };
 
@@ -296,6 +387,11 @@ const section_10_82 = (sdp, params) => {
 
 const section_10_83 = (sdp, params) => {
   let tests = [ test_10_83_1, test_10_83_2, test_10_83_3 ];
+  return concat(tests.map(t => t(sdp, params)));
+};
+
+const section_20_71 = (sdp, params) => {
+  let tests = [ test_20_71_1, test_20_71_2, test_20_71_3 ];
   return concat(tests.map(t => t(sdp, params)));
 };
 
@@ -317,7 +413,8 @@ const no_copy = sdp => {
 };
 
 const allSections = (sdp, params) => {
-  let sections = [ section_10_81, section_10_82, section_10_83 ];
+  let sections = [ section_10_81, section_10_82, section_10_83,
+    section_20_71 ];
   if (params.noCopy) {
     sections.push(no_copy);
   }
