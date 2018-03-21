@@ -74,7 +74,7 @@ const test_10_81_2 = (sdp, params) => {
   if (!params.should) return [];
   let directCheck = sdp.match(mediaclkDirectPattern);
   if (Array.isArray(directCheck) && directCheck.length > 0) {
-    directCheck = directCheck.filter(x => !x.startsWith('a=mediaclk:direct'));
+    directCheck = directCheck.filter(x => !x.slice(1).startsWith('a=mediaclk:direct'));
     return concat(directCheck.map(nd =>
       new Error(`The 'direct' reference for the mediaclk paramter should be used, as per SMPTE ST 2110-10 Section 8.1. Found '${nd}'.`)));
   } else {
@@ -377,6 +377,9 @@ const test_20_71_3 = sdp => {
       }
     }
   }
+  if (!rtpmapInStream && payloadType >= 0) {
+    errors.push(new Error(`Line ${lines.length}: Stream ${streamCount} does not have an 'rtpmap' attribute.`));
+  }
   return errors;
 };
 
@@ -414,10 +417,16 @@ const test_20_71_4 = sdp => {
       }
     }
   }
+  if (!fmtpInStream && payloadType >= 0) {
+    errors.push(new Error (`Line ${lines.length}: Stream ${streamCount} does not have an 'fmtp' attribute.`));
+  }
+  return errors;
 };
 
-const extractMTParams = sdp => {
+// Test for duplicate parameters by setting params.checkDups
+const extractMTParams = (sdp, params = {}) => {
   let mtParams = [];
+  let errors = [];
   let lines = splitLines(sdp);
   let streamCount = 0;
   let payloadType = -1;
@@ -434,17 +443,29 @@ const extractMTParams = sdp => {
       }
       let paramsMatch = lines[x].match(fmtpParams);
       let splitParams = paramsMatch.map(p => p.split(/[=;]/));
+      if (params.checkDups) {
+        let keys = splitParams.map(p => p[0]);
+        let reported = [];
+        for ( let y in keys ) {
+          if (keys.filter(k => keys[y] === k).length >= 2) {
+            if (reported.indexOf(keys[y]) < 0) {
+              errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, parameter '${keys[y]}' appears more than once.`));
+              reported.push(keys[y]);
+            }
+          }
+        }
+      }
       let paramsObject = splitParams.reduce((x, y) => {
         x[y[0]] = y[1];
         return x;
       }, {});
       paramsObject._payloadType = payloadType;
-      paramsObject._line = x;
+      paramsObject._line = x + 1;
       paramsObject._streamNumber = streamCount;
       mtParams.push(paramsObject);
     }
   }
-  return mtParams;
+  return [ mtParams, errors ];
 };
 
 const mustHaves = [ 'sampling', 'depth', 'width', 'height', 'exactframerate',
@@ -452,8 +473,7 @@ const mustHaves = [ 'sampling', 'depth', 'width', 'height', 'exactframerate',
 
 // Test ST 2110-20 Section 7.2 Test 1 - Test all required parameters are present
 const test_20_72_1 = sdp => {
-  let errors = [];
-  let mtParams = extractMTParams(sdp);
+  let [ mtParams, errors ] = extractMTParams(sdp, { checkDups: true });
   for ( let stream of mtParams ) {
     let keys = Object.keys(stream);
     for ( let param of mustHaves ) {
@@ -467,18 +487,17 @@ const test_20_72_1 = sdp => {
 
 // Test ST 2110-20 Section 7.2 Test 2 - Check width and height are within bounds
 const test_20_72_2 = sdp => {
-  let errors = [];
-  let mtParams = extractMTParams(sdp);
+  let [ mtParams, errors ] = extractMTParams(sdp);
   for ( let stream of mtParams ) {
     if (typeof stream.width !== undefined) { // Test 1 confirms
       let width = +stream.width;
-      if (isNaN(width) || stream.width.match(integerPattern)) {
+      if (isNaN(width) || integerPattern.test(stream.width) === false) {
         errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, parameter 'width' is not an integer value, as per SMPTE ST 2110-20 Section 7.2.`));
       } else if (width < 1 || width > 32767) {
         errors.push(new Error(`Line ${stream._line}: For strean ${stream._streamNumber}, parameter 'width' with value '${width}' is outside acceptable range of 1 to 32767 inclusive, as per SMPTE ST 2110-20 Section 7.2.`));
       }
       let height = +stream.height;
-      if (isNaN(height) || stream.height.match(integerPattern)) {
+      if (isNaN(height) || integerPattern.test(stream.height) === false) {
         errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, parameter 'height' is not an integer value, as per SMPTE ST 2110-20 Section 7.2.`));
       } else if (height < 1 || height > 32767) {
         errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, parameter 'height' with value '${height}' is outside acceptable range of 1 to 32767 inclusive, as per SMPTE ST 2110-20 Section 7.2.`));
@@ -492,11 +511,10 @@ const greatestCommonDivisor = (a, b) => !b ? a : greatestCommonDivisor(b, a % b)
 
 // Test ST 2110-20 Section 7.2 Test 3 - Exactframerate is as specified
 const test_20_72_3 = sdp => {
-  let errors = [];
-  let mtParams = extractMTParams(sdp);
+  let [ mtParams, errors ] = extractMTParams(sdp);
   for ( let stream of mtParams ) {
     if (typeof stream.exactframerate !== undefined) {
-      let frMatch = frameRatePattern.match(stream.exactframerate);
+      let frMatch = stream.exactframerate.match(frameRatePattern);
       if (!frMatch) {
         errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, parameter 'exactframerate' does not match an acceptable pattern, as per SMPTE ST 2110-20 Section 7.2.`));
         continue;
@@ -531,8 +549,7 @@ const packingModes = [ '2110GPM', '2110BPM' ];
 
 // Test ST 2110-20 Section 7.2 Test 4 - Check packing mode as per spec.
 const test_20_72_4 = sdp => {
-  let errors = [];
-  let mtParams = extractMTParams(sdp);
+  let [ mtParams, errors ] = extractMTParams(sdp);
   for ( let stream of mtParams ) {
     if (typeof stream.PM !== undefined) {
       if (packingModes.indexOf(stream.PM) < 0) {
@@ -545,8 +562,7 @@ const test_20_72_4 = sdp => {
 
 // Test ST 2110-20 Section 7.2 Test 5 - Check SSN is the required fixed value
 const test_20_72_5 = sdp => {
-  let errors = [];
-  let mtParams = extractMTParams(sdp);
+  let [ mtParams, errors ] = extractMTParams(sdp);
   for ( let stream of mtParams ) {
     if (typeof stream.SSN !== 'undefined') {
       if (stream.SSN !== 'ST2110-20:2017') {
@@ -559,8 +575,7 @@ const test_20_72_5 = sdp => {
 
 // Test ST 2110-20 Section 7.3 Test 1 - Interlace is name only
 const test_20_73_1 = sdp => {
-  let errors = [];
-  let mtParams = extractMTParams(sdp);
+  let [ mtParams, errors ] = extractMTParams(sdp);
   for ( let stream of mtParams ) {
     if (typeof stream.interlace !== 'undefined') {
       if (stream.interlace !== '') {
@@ -573,8 +588,7 @@ const test_20_73_1 = sdp => {
 
 // Test ST 2110-20 Section 7.3 Test 2- Segmented is name only and interlace is also signalled
 const test_20_73_2 = sdp => {
-  let errors = [];
-  let mtParams = extractMTParams(sdp);
+  let [ mtParams, errors ] = extractMTParams(sdp);
   for ( let stream of mtParams ) {
     if (typeof stream.segmented !== 'undefined') {
       if (stream.segmented !== '') {
@@ -592,13 +606,12 @@ const rangePermitted = [ 'NARROW', 'FULLPROTECT', 'FULL' ];
 
 // Test ST 2110-20 Section 7.3 Test 3 - RANGE has acceptable values in colorimetry context
 const test_20_73_3 = sdp => {
-  let errors = [];
-  let mtParams = extractMTParams(sdp);
+  let [ mtParams, errors ] = extractMTParams(sdp);
   for ( let stream of mtParams ) {
     if (typeof stream.RANGE !== 'undefined') {
       if (stream.colorimetry === 'BT2100') {
         if (stream.RANGE !== 'FULL' && stream.RANGE !== 'NARROW') {
-          errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, format parameter 'RANGE' is '${stream.RANGE}' and not one of the accpetabe values for colorimetry BT.2100 or 'FULL' or 'NARROW', as per SMPTE ST 2110-20 Section 7.3`));
+          errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, format parameter 'RANGE' is '${stream.RANGE}' and not one of the accpetabe values for colorimetry BT.2100 of 'FULL' or 'NARROW', as per SMPTE ST 2110-20 Section 7.3`));
         }
         continue;
       }
@@ -614,12 +627,11 @@ const maxudpPermitted = [ '1460', '8960' ];
 
 // Test ST 2110-20 Section 7.3 Test 4 - MAXUDP has acceptable values wrt ST 2110-10
 const test_20_73_4 = sdp => {
-  let errors = [];
-  let mtParams = extractMTParams(sdp);
+  let [ mtParams, errors ] = extractMTParams(sdp);
   for ( let stream of mtParams ) {
     if (typeof stream.MAXUDP !== 'undefined') {
       if (maxudpPermitted.indexOf(stream.MAXUDP) < 0) {
-        errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, format parameter 'MAXUDP' is '${stream.MAXUDP} and not one of the acceptable values '1460' or '8960', as per SMPTE ST 2110-20 Section 7.3.`));
+        errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, format parameter 'MAXUDP' is '${stream.MAXUDP}' and not one of the acceptable values '1460' or '8960', as per SMPTE ST 2110-20 Section 7.3.`));
       }
     }
   }
@@ -628,13 +640,105 @@ const test_20_73_4 = sdp => {
 
 // Test ST 2110-20 Section 7.3 Test 5 - PAR is an acceptable value
 const test_20_73_5 = sdp => {
-  let errors = [];
-  let mtParams = extractMTParams(sdp);
+  let [ mtParams, errors ] = extractMTParams(sdp);
   for ( let stream of mtParams ) {
     if (typeof stream.PAR !== 'undefined') {
       let parMatch = stream.PAR.match(parPattern);
       if (!parMatch) {
         errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, format parameter 'PAR' is not an acceptable pattern, as per SMPTE ST 2110-20 Section 7.3.`));
+        continue;
+      }
+      let [ numerator, denominator ] = [ +parMatch[1], +parMatch[2] ];
+      if (greatestCommonDivisor(numerator, denominator) > 1) {
+        errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, format parameter 'PAR' with value '${stream.PAR}' is a ratio that is not expressed with the smallest possible values, as per SMPTE ST 2110-20 Section 7.3.`));
+      }
+    }
+  }
+  return errors;
+};
+
+const samplingPermitted = [
+  'YCbCr-4:4:4',   'YCbCr-4:2:2',   'YCbCr-4:2:0',
+  'CLYCbCr-4:4:4', 'CLYCbCr-4:2:2', 'CLYCbCr-4:2:0',
+  'ICtCp-4:4:4',   'ICtCp-4:2:2',   'ICtCp-4:2:0',
+  'RGB', 'XYZ', 'KEY'
+];
+
+// Test ST 2110-20 Section 7.4 Test 1 - Sampling is a defined value
+const test_20_74_1 = sdp => {
+  let [ mtParams, errors ] = extractMTParams(sdp);
+  for ( let stream of mtParams ) {
+    if (typeof stream.sampling !== 'undefined') {
+      if (samplingPermitted.indexOf(stream.sampling) < 0) {
+        errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, format parameter 'sampling' is not an acceptable value, as per SMPTE ST 2110-20 Section 7.4.1.`));
+        continue;
+      }
+      // TODO colorimetry-specific tests - if possible
+    }
+  }
+  return errors;
+};
+
+const depthPermitted = [ '8', '10', '12', '16', '16f' ];
+
+// Test ST 2110-20 Section 7.4 Test 2 - Bit depth is a permitted value
+const test_20_74_2 = sdp => {
+  let [ mtParams, errors ] = extractMTParams(sdp);
+  for ( let stream of mtParams ) {
+    if (typeof stream.depth !== 'undefined') {
+      if (depthPermitted.indexOf(stream.depth) < 0) {
+        errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, format parameter 'depth' is not one of 8, 10, 12 or 16/16f, as per SMPTE ST 2110-20 Section 7.4.2.`));
+      }
+    }
+  }
+  return errors;
+};
+
+const colorPermitted = [
+  'BT601', 'BT709', 'BT2020', 'BT2100', 'ST2065-1',
+  'ST2065-3', 'UNSPECIFIED', 'XYZ' ];
+
+// Test ST 2110-20 Section 7.5 Test 1 - Colorimetry is a permitted value.
+const test_20_75_1 = sdp => {
+  let [ mtParams, errors ] = extractMTParams(sdp);
+  for ( let stream of mtParams ) {
+    if (typeof stream.colorimetry !== 'undefined') {
+      if (colorPermitted.indexOf(stream.colorimetry) < 0) {
+        errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, format parameter 'colorimetry' is not a permitted value, as per SMPTE 2110-20 Section 7.5.`));
+      }
+    }
+  }
+  return errors;
+};
+
+// Test ST 2110-20 Section 7.5 Test 2 - Signals using BT.2100 should specify RANGE
+const test_20_75_2 = (sdp, params) => {
+  if (params.should === false) {
+    return [];
+  }
+  let [ mtParams, errors ] = extractMTParams(sdp);
+  for ( let stream of mtParams ) {
+    if (typeof stream.colorimetry !== 'undefined') {
+      if (stream.colorimetry === 'BT2100' && typeof stream.RANGE === 'undefined') {
+        errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, format parameter 'colorimetry' is 'BT2100' and so a 'RANGE' parameter should also be specified, as per SMPTE 2110-20 Section 7.5.`));
+      }
+    }
+  }
+  return errors;
+};
+
+const tcsPermitted = [
+  'SDR', 'PQ', 'HLG', 'LINEAR', 'BT2100LINPQ', 'BT2100LINHLG', 'ST2065-1',
+  'ST428-1', 'DENSITY', 'UNSPECIFIED'
+];
+
+// Test ST 2110-20 Section 7.6 Test 1 - TCS is a permitted value
+const test_20_76_1 = sdp => {
+  let [ mtParams, errors ] = extractMTParams(sdp);
+  for ( let stream of mtParams ) {
+    if (typeof stream.TCS !== 'undefined') {
+      if (tcsPermitted.indexOf(stream.TCS) < 0) {
+        errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, format parameter 'TCS' (Transfer Characteristic System) is not a permitted value, as per SMPTE 2110-20 Section 7.6.`));
       }
     }
   }
@@ -673,6 +777,21 @@ const section_20_73 = (sdp, params) => {
   return concat(tests.map(t => t(sdp, params)));
 };
 
+const section_20_74 = (sdp, params) => {
+  let tests = [ test_20_74_1, test_20_74_2 ];
+  return concat(tests.map(t => t(sdp, params)));
+};
+
+const section_20_75 = (sdp, params) => {
+  let tests = [ test_20_75_1, test_20_75_2 ];
+  return concat(tests.map(t => t(sdp, params)));
+};
+
+const section_20_76 = (sdp, params) => {
+  let tests = [ test_20_76_1 ];
+  return concat(tests.map(t => t(sdp, params)));
+};
+
 // Test ST2110-10 Appendix B Test 1 - Check that the SDP file given is not a straight copy
 const no_copy = sdp => {
   let lines = splitLines(sdp.trim());
@@ -692,7 +811,8 @@ const no_copy = sdp => {
 
 const allSections = (sdp, params) => {
   let sections = [ section_10_81, section_10_82, section_10_83,
-    section_20_71, section_20_72, section_20_73 ];
+    section_20_71, section_20_72, section_20_73, section_20_74,
+    section_20_75, section_20_76 ];
   if (params.noCopy) {
     sections.push(no_copy);
   }
@@ -700,5 +820,14 @@ const allSections = (sdp, params) => {
 };
 
 module.exports = {
-  allSections
+  allSections,
+  section_10_81,
+  section_10_82,
+  section_10_83,
+  section_20_71,
+  section_20_72,
+  section_20_73,
+  section_20_74,
+  section_20_75,
+  section_20_76
 };
