@@ -44,7 +44,7 @@ const args = yargs
   })
   .argv;
 
-console.log(args);
+// console.log(args);
 
 async function test (args) {
   try {
@@ -53,7 +53,10 @@ async function test (args) {
     let st2110Errors = checkST2110(sdp, args);
     let errors = rfcErrors.concat(st2110Errors);
     if (errors.length !== 0) {
-      console.error(errors.map(e => e.message));
+      console.error(`Found ${errors.length} error(s) in SDP file:`);
+      for ( let c in errors ) {
+        console.error(`${+c + 1}: ${errors[c].message}`);
+      }
       process.exit(1);
     } else {
       process.exit(0);

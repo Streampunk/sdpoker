@@ -61,8 +61,9 @@ a=mid:secondary`;
 const test_10_81_1 = sdp => {
   let errors = [];
   let streams = sdp.split(/[\r\n]m=/).slice(1);
+  debugger;
   for ( let x = 0 ; x < streams.length ; x++ ) {
-    if (!mediaclkPattern.test(sdp)) {
+    if (!mediaclkPattern.test(streams[x])) {
       errors.push(new Error(`Stream ${x + 1}: Each stream description shall have a media-level 'mediaclk' attribute, as per SMPTE ST 2110-10 Section 8.1.`));
     }
   }
@@ -76,7 +77,7 @@ const test_10_81_2 = (sdp, params) => {
   if (Array.isArray(directCheck) && directCheck.length > 0) {
     directCheck = directCheck.filter(x => !x.slice(1).startsWith('a=mediaclk:direct'));
     return concat(directCheck.map(nd =>
-      new Error(`The 'direct' reference for the mediaclk paramter should be used, as per SMPTE ST 2110-10 Section 8.1. Found '${nd}'.`)));
+      new Error(`The 'direct' reference for the mediaclk paramter should be used, as per SMPTE ST 2110-10 Section 8.1. Found '${nd.slice(1)}'.`)));
   } else {
     return [];
   }
