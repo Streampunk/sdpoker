@@ -17,7 +17,8 @@ const splitLines = sdp => sdp.match(/[^\r\n]+/g);
 const concat = arrays => Array.prototype.concat.apply([], arrays);
 
 const mediaclkPattern = /[\r\n]a=mediaclk/;
-const mediaclkDirectPattern = /[\r\n]a=mediaclk[^\s=]+/g;
+const mediaclkTypePattern = /[\r\n]a=mediaclk[^\s=]+/g;
+const mediaclkDirectPattern = /[\r\n]a=mediaclk:direct=\d+\s+/g;
 const tsrefclkPattern = /[\r\n]a=ts-refclk/;
 const ptpPattern = /(([0-9a-fA-F]{2}-){7}[0-9a-fA-F]{2})(:(\d+|domain-name=\S+))?/;
 const macPattern = /(([0-9a-fA-F]{2}-){5}[0-9a-fA-F]{2})/;
@@ -32,6 +33,13 @@ const fmtpParams = /([^\s=;]+(?:=[^\s;]+)?);/g;
 const integerPattern = /^[1-9]\d*$/;
 const frameRatePattern = /^([1-9]\d*)(?:\/([1-9]\d*))?$/;
 const parPattern = /^([1-9]\d*):([1-9]\d*)$/;
+const rtpmapSound = /a=rtpmap:(\d+)\s+(L16|L24)\/([1-9]\d*)\/([1-9]\d*)/;
+const ptimePattern = /^a=ptime:(\d+(?:\.\d+)?)$/;
+const maxptimePattern = /^a=maxptime:(\d+(?:\.\d+)?)$/;
+const audioPattern = /audio\s+(\d+)(\/\d+)?\s+(RTP\/S?AVP)\s+(\d+)/;
+const channelOrderPattern = /^a=fmtp:(\d+)\s+.*channel-order=([^\s;]+).*$/;
+const smpteChannelPattern =
+  /SMPTE2110\.\((M|DM|ST|LtRt|51|71|222|SGRP|U\d\d)(,(M|DM|ST|LtRt|51|71|222|SGRP|U\d\d))*\)/;
 
 const specExample = `v=0
 o=- 123456 11 IN IP4 192.168.100.2
@@ -57,11 +65,29 @@ a=ts-refclk:ptp=IEEE1588-2008:39-A7-94-FF-FE-07-CB-D0:37
 a=mediaclk:direct=0
 a=mid:secondary`;
 
+// Test ST2110-10 Section 7.4 Test 1 - Where mediaclk:direct is used with PTP, offset value is zero
+const test_10_74_1 = sdp => {
+  let errors = [];
+  let streams = sdp.split(/[\r\n]m=/).slice(1);
+  for ( let s in streams ) {
+    let zeroCheck = streams[s].match(mediaclkDirectPattern);
+    if (Array.isArray(zeroCheck) && zeroCheck.length > 0 &&
+      streams[s].indexOf('IEEE1588-2008') > 0) { // Zero check only PTP clocks
+      zeroCheck = zeroCheck.map(z => +(z.trim().split('=')[2]));
+      for ( let x in zeroCheck ) {
+        if (zeroCheck[x] !== 0) {
+          errors.push(new Error(`For stream ${s}, the 'mediaclk' attribute shall have a zero offset when direct-referenced PTP timing is in use, as per SMPTE ST 2110-10 Section 7.4.`));
+        }
+      }
+    }
+  }
+  return errors;
+};
+
 // Test ST2110-10 Section 8.1 Test 1 - Shell have media-level mediaclk per stream
 const test_10_81_1 = sdp => {
   let errors = [];
   let streams = sdp.split(/[\r\n]m=/).slice(1);
-  debugger;
   for ( let x = 0 ; x < streams.length ; x++ ) {
     if (!mediaclkPattern.test(streams[x])) {
       errors.push(new Error(`Stream ${x + 1}: Each stream description shall have a media-level 'mediaclk' attribute, as per SMPTE ST 2110-10 Section 8.1.`));
@@ -73,7 +99,7 @@ const test_10_81_1 = sdp => {
 // Test ST2110-10 Section 8.1 Test 2 - Should have mediaclk using direct reference
 const test_10_81_2 = (sdp, params) => {
   if (!params.should) return [];
-  let directCheck = sdp.match(mediaclkDirectPattern);
+  let directCheck = sdp.match(mediaclkTypePattern);
   if (Array.isArray(directCheck) && directCheck.length > 0) {
     directCheck = directCheck.filter(x => !x.slice(1).startsWith('a=mediaclk:direct'));
     return concat(directCheck.map(nd =>
@@ -82,8 +108,6 @@ const test_10_81_2 = (sdp, params) => {
     return [];
   }
 };
-
-// TODO check that the media clk complies with RFC7273 Section 5.2
 
 // Test ST2110-10 Section 8.1 Test 1 - Shall have a media-level ts-refclk
 const test_10_82_1 = sdp => {
@@ -746,6 +770,196 @@ const test_20_76_1 = sdp => {
   return errors;
 };
 
+const sampleRatePermitted = [ '44100', '48000', '96000' ];
+
+// Note: Sample rate provisions of 6.1 are repeated by 6.2.1 reference to AES-67 7.1
+
+// Test ST 2110-30 Section 6.2.1 Test 1 - Compliance with AES-67 Section 7.1
+const test_30_62_1 = sdp => {
+  let errors = [];
+  let lines = splitLines(sdp);
+  let payloadType = -1;
+  let streamCount = 0;
+  let hasRtpmap = true;
+  for ( let x = 0 ; x < lines.length ; x++ ) {
+    if (lines[x].startsWith('m=')) {
+      if (hasRtpmap === false && payloadType >= 0) {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, required attribute 'rtpmap' is missing for audio stream.`));
+      }
+      let audioMatch = lines[x].match(audioPattern);
+      payloadType = audioMatch ? +audioMatch[4] : -1;
+      streamCount++;
+      hasRtpmap = false;
+      continue;
+    }
+    if (payloadType >= 0 && lines[x].startsWith('a=rtpmap')) {
+      let soundMatch = lines[x].match(rtpmapSound);
+      if (!soundMatch) {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, attribute 'rtpmap' does not match the acceptable audio pattern, e.g. L16 or L24 audio as per AES-67.`));
+        continue;
+      }
+      if (hasRtpmap) {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, attribute 'rtpmap' is unexpectedly duplicated.`));
+      }
+      hasRtpmap = true;
+      if (payloadType !== +soundMatch[1]) {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, attribute 'rtpmap' has payload type '${soundMatch[1]}' that is different from stream payload type '${payloadType}'.`));
+      }
+      if (sampleRatePermitted.indexOf(soundMatch[3]) < 0) {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, attribute 'rtpmap' specifies an unacceptable sampling rate '${soundMatch[3]}', as per SMPTE ST 2110-30 Section 6.1 and AES-67 Section 7.1.`));
+      }
+      switch (+soundMatch[3]) {
+      case 48000:
+        break; // L16 and L24 are supported
+      case 96000:
+        if (soundMatch[2] === 'L16') {
+          errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, attribute 'rtpmap' describes an out-of-scope combination of 'L16/96000', as per SMPTE ST 2110-30 Section 6.2.1 requiring AES-67 Section 7.1.`));
+        }
+        break;
+      case 44100:
+        if (soundMatch[2] === 'L24') {
+          errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, attribute 'rtpmap' describes an out-of-scope combination of 'L24/44100', as per SMPTE ST 2110-30 Section 6.2.1 requiring AES-67 Section 7.1.`));
+        }
+        break;
+      default:
+        break;
+      }
+    }
+  }
+  if (hasRtpmap === false && payloadType >= 0) {
+    errors.push(new Error(`Line ${lines.length}: For stream ${streamCount}, required attribute 'rtpmap' is missing for audio stream.`));
+  }
+  return errors;
+};
+
+// Test ST 2110-30 Section 6.2.1 Test 2 - Valid audio SDP
+const test_30_62_2 = sdp => {
+  let errors = [];
+  let lines = splitLines(sdp);
+  for ( let x = 0 ; x < lines.length ; x++ ) {
+    if (!lines[x].startsWith('m=audio')) {
+      continue;
+    }
+    let audioMatch = lines[x].match(audioPattern);
+    if (!audioMatch) {
+      errors.push(new Error(`Line ${x + 1}: Found a media description for audio with a pattern that is not acceptable.`));
+      continue;
+    }
+    // Check port number - SMPTE 2110-10 Section 6.2 says shall be UDP, so assume 0-65535
+    let port = +audioMatch[1];
+    if (isNaN(port) || port < 0 || port > 65535) {
+      errors.push(new Error(`Line ${x + 1}: RTP audio stream description with invalid port '${port}', with reference to ST 2110-10 Section 6.2 'shall use UDP'.`));
+    }
+    // Check RTP type - SMPTE 2110-10 Section 6.2 says shall be RTP, no allowance for SRTP
+    if (audioMatch[3] === 'RTP/SAVP') {
+      errors.push(new Error(`Line ${x + 1}: SRTP protocol is not allowed by SMPTE ST 2110-10 Section 6.2.`));
+    }
+    // Check dynamic range - assume 2110-30 is always dynamic
+    let payloadType = +audioMatch[4];
+    if (isNaN(payloadType) || payloadType < 96 || payloadType > 127) {
+      errors.push(new Error(`Line ${x + 1}: Dynamic payload type expected for SMPTE 2110-defined audio.`));
+    }
+  }
+  return errors;
+};
+
+// Test ST 2110-30 Section 6.2.1 Test 3 - SDP conformance - packet time signalling
+const test_30_62_3 = sdp => {
+  let errors = [];
+  let lines = splitLines(sdp);
+  let streamCount = 0;
+  let hasPTime = true;
+  let payloadType = -1;
+  for ( let x = 0 ; x < lines.length ; x++ ) {
+    if (lines[x].startsWith('m=')) {
+      if (!hasPTime && payloadType >= 0) {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, required attribute 'ptime' is missing, as per SMPTE ST 2110-30 Section 6.2.1 requiring AES-67 Section 8.1.`));
+      }
+      let audioMatch = lines[x].match(audioPattern);
+      streamCount++;
+      payloadType = audioMatch ? +audioMatch[4] : -1;
+      hasPTime = false;
+      continue;
+    }
+    if (lines[x].startsWith('a=ptime') && payloadType >= 0) {
+      let ptimeMatch = lines[x].match(ptimePattern);
+      if (!ptimeMatch) {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, attribute 'ptime' is not an acceptable pattern, as per SMPTE ST 2110-30 Section 6.2.1 requiring AES-67 Section 8.1.`));
+        continue;
+      }
+      if (hasPTime) {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, attribute 'ptime' is unexpectedly duplicated, which is ambiguous for AES-67 in context of ST 2110-30.`));
+        continue;
+      }
+      hasPTime = true;
+      // TODO check ptime by sample rate?
+    }
+    if (lines[x].startsWith('a=maxptime')) {
+      if (!maxptimePattern.test(lines[x])) {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, attribute 'maxptime' is not an acceptable pattern, as per SMPTE ST 2110-30 Section 6.2.1 requiring AES-67 Section 8.1.`));
+      }
+    }
+  }
+  if (!hasPTime && payloadType >= 0) {
+    errors.push(new Error(`Line ${lines.length}: For stream ${streamCount}, required attribute 'ptime' is missing, as per ST 2110-30 Section 6.2.1 requiring AES-67 Section 8.1.`));
+  }
+  return errors;
+};
+
+// Test ST 2110-30 Section 6.2.2 Test 4 - Channel order format - where present
+const test_30_62_4 = (sdp, params) => {
+  let errors = [];
+  let lines = splitLines(sdp);
+  let streamCount = 0;
+  let hasFmtp = true;
+  let payloadType = -1;
+  for ( let x = 0 ; x < lines.length ; x++ ) {
+    if (lines[x].startsWith('m=')) {
+      if (params.channelOrder === true && hasFmtp === false && payloadType >= 0) {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, channel order for an audio stream is required by test parameters but is not present.`));
+      }
+      let audioMatch = lines[x].match(audioPattern);
+      payloadType = audioMatch ? +audioMatch[4] : -1;
+      streamCount++;
+      hasFmtp = false;
+      continue;
+    }
+    if (lines[x].startsWith('a=fmtp') && (payloadType >= 0)) {
+      let fmtpMatch = lines[x].match(channelOrderPattern);
+      if (fmtpMatch === null) {
+        if (params.channelOrder === true) {
+          errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, audio stream attribute 'fmtp' does not contain a channel order parameter, as required by testing parameters.`));
+        }
+        hasFmtp = true;
+        continue;
+      }
+      if (hasFmtp) {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, audio stream contains duplicate 'fmtp' attribute.`));
+      }
+      hasFmtp = true;
+      if (payloadType !== +fmtpMatch[1]) {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, payload type of 'fmtp' attribute '${fmtpMatch[1]}' does not match that of the stream '${payloadType}'.`));
+      }
+      let order = fmtpMatch[2];
+      if (params.should === true && !order.startsWith('SMPTE2110')) {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, format parameter 'channel-order' should be specified by the 'SMPTE2110' convention, not '${order.split('.')[0]}', as per SMPTE ST 2110-30 Section 6.2.2.`));
+      }
+      if (order.startsWith('SMPTE2110') && !smpteChannelPattern.test(order)) {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, format parameter 'channel-order' is not acceptable, as per SMPTE ST 2110-30 Section 6.2.2.`));
+      }
+    }
+  }
+  if (params.channelOrder === true && hasFmtp === false && payloadType >= 0) {
+    errors.push(new Error(`Line ${lines.lengths}: For stream ${streamCount}, channel order for an audio stream is required by test parameters but is not present.`));
+  }
+  return errors;
+};
+
+const section_10_74 = (sdp, params) => {
+  let tests = [ test_10_74_1 ];
+  return concat(tests.map(t => t(sdp, params)));
+};
+
 const section_10_81 = (sdp, params) => {
   let tests = [ test_10_81_1, test_10_81_2 ];
   return concat(tests.map(t => t(sdp, params)));
@@ -793,6 +1007,11 @@ const section_20_76 = (sdp, params) => {
   return concat(tests.map(t => t(sdp, params)));
 };
 
+const section_30_62 = (sdp, params) => {
+  let tests = [ test_30_62_1, test_30_62_2, test_30_62_3, test_30_62_4 ];
+  return concat(tests.map(t => t(sdp, params)));
+};
+
 // Test ST2110-10 Appendix B Test 1 - Check that the SDP file given is not a straight copy
 const no_copy = sdp => {
   let lines = splitLines(sdp.trim());
@@ -811,9 +1030,10 @@ const no_copy = sdp => {
 };
 
 const allSections = (sdp, params) => {
-  let sections = [ section_10_81, section_10_82, section_10_83,
+  let sections = [
+    section_10_74, section_10_81, section_10_82, section_10_83,
     section_20_71, section_20_72, section_20_73, section_20_74,
-    section_20_75, section_20_76 ];
+    section_20_75, section_20_76, section_30_62 ];
   if (params.noCopy) {
     sections.push(no_copy);
   }
@@ -822,6 +1042,7 @@ const allSections = (sdp, params) => {
 
 module.exports = {
   allSections,
+  section_10_74,
   section_10_81,
   section_10_82,
   section_10_83,
@@ -830,5 +1051,6 @@ module.exports = {
   section_20_73,
   section_20_74,
   section_20_75,
-  section_20_76
+  section_20_76,
+  section_30_62
 };
