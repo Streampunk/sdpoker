@@ -62,6 +62,7 @@ const followedBy = {
     'a': { 'a': 'media', 'm' : 'media' }
   }
 };
+const oPattern = /^o=(\S+)\s+(\d+)\s+(\d+)\s+IN\s+(IP[4|6])\s+(\S+)$/;
 const cPattern = /^c=IN\s+(IP[46])\s+([^\s/]+)(\/\d+)?(\/[1-9]\d*)?$/;
 const ip4Pattern = /^([1-9]\d?\d?)\.(\d\d?\d?)\.(\d\d?\d?)\.(\d\d?\d?)$/;
 // Tne following is a very basic test of IPv6 addresses
@@ -80,7 +81,7 @@ const test50_1 = sdp => {
 const splitLines = sdp => sdp.match(/[^\r\n]+/g);
 
 // Section 5 Test 2 - check each line is an acceptable format - no blank lines
-const test50_2 = lines => {
+const test_50_2 = lines => {
   let errors = [];
   for ( let x = 0 ; x < lines.length ; x++ ) {
     if (!linePattern.test(lines[x])) {
@@ -92,7 +93,7 @@ const test50_2 = lines => {
 };
 
 // Section 5 Test 3 - check the only letters in use as types are defined in RFC 4566
-const test50_3 = lines => {
+const test_50_3 = lines => {
   let errors = [];
   for ( let x = 0 ; x < lines.length ; x++ ) {
     if (!letterCheck.test(lines[x])) {
@@ -104,7 +105,7 @@ const test50_3 = lines => {
 };
 
 // Section 5 Test 4 - Check for mandatory types
-const test50_4 = lines => {
+const test_50_4 = lines => {
   let errors = [];
   let types = lines.map(x => x.slice(0, 1));
   for ( let x of mustHaves ) {
@@ -116,7 +117,7 @@ const test50_4 = lines => {
 };
 
 // Section 5 Test 5 - Check the order of the parameters
-const test50_5 = lines => {
+const test_50_5 = lines => {
   let errors = [];
   let types = lines.map(x => x.slice(0, 1));
   let state = 'session';
@@ -133,7 +134,7 @@ const test50_5 = lines => {
   return errors;
 };
 
-const test50_6 = lines => {
+const test_50_6 = lines => {
   let errors = [];
   // Test 6 - check no values contain the Nul character
   for ( let x = 0 ; x < lines.length ; x++ ) {
@@ -145,10 +146,60 @@ const test50_6 = lines => {
 };
 
 // Section 5.1 Test 1 - first line must be v=0
-const test51_1 = lines => {
+const test_51_1 = lines => {
   let errors = [];
   if (!lines[0].startsWith('v=0')) {
     errors.push(new Error('Line 1: The first line must be \'v=0\' as per RFC 4566 Section 5.1.'));
+  }
+  return errors;
+};
+
+// Section 5.2 Test 1 - Origin name matches acceptable patterns
+const test_52_1 = (sdp, params) => {
+  let errors = [];
+  let lines = splitLines(sdp);
+  for ( let x = 0 ; x < lines.length ; x++ ) {
+    if (lines[x].startsWith('o=')) {
+      let oMatch = lines[x].match(oPattern);
+      if (!oMatch) {
+        errors.push(new Error(`Line ${x + 1}: Origin field ("o=") is not an acceptable pattern, as per RFC 4566 Section 5.2.`));
+        continue;
+      }
+      if (params.useIP4 === true && oMatch[4] === 'IP6') {
+        errors.push(new Error(`Line ${x + 1}: Origin field specified an address type of 'IP6' when 'IP4' is requested by configuration.`));
+      }
+      if (params.useIP6 === true && oMatch[4] === 'IP4') {
+        errors.push(new Error(`Line ${x + 1}: Origin field specified an address type of 'IP4' when 'IP6' is requested by configuration.`));
+      }
+      if (multiPattern.test(oMatch[5])) {
+        errors.push(new Error(`Line ${x + 1}: Origin field address of the machine is a multicast address when it must be a unicast address.`));
+      }
+    }
+  }
+  return errors;
+};
+
+// Section 5.2 Test 2 - Check that the unicast address meets test configuration
+const test_52_2 = (sdp, params) => {
+  if (params.useIP4 === false && params.useIP6 === false) {
+    return [];
+  }
+  let errors = [];
+  let lines = splitLines(sdp);
+  for ( let x = 0 ; x < lines.length ; x++ ) {
+    if (lines[x].startsWith('o=')) {
+      debugger;
+      let oMatch = lines[x].match(oPattern);
+      if (!oMatch) {
+        continue;
+      }
+      if (params.useIP4 && !ip4Pattern.test(oMatch[5])) {
+        errors.push(new Error(`Line ${x + 1}: Origin field address of the machine should use IPv4 as requested by configuration.`));
+      }
+      if (params.useIP6 && !ip6Pattern.test(oMatch[5])) {
+        errors.push(new Error(`Line ${x + 1}: Origin field address of the machine should use IPv6 as requested by configuration.`));
+      }
+    }
   }
   return errors;
 };
@@ -258,13 +309,18 @@ const section_50 = (sdp, params) => {
   let endTest = params.checkEndings ? test50_1(sdp, params.checkEndings) : [];
   // TODO decide whether to continue if line error endings are bad?
   let lines = splitLines(sdp);
-  let mainTests = [ test50_2, test50_3, test50_4, test50_5, test50_6 ];
+  let mainTests = [ test_50_2, test_50_3, test_50_4, test_50_5, test_50_6 ];
   return concat(mainTests.map(t => t(lines, params))).concat(endTest);
 };
 
 const section_51 = (sdp, params) => {
   let lines = splitLines(sdp);
-  return test51_1(lines, params);
+  return test_51_1(lines, params);
+};
+
+const section_52 = (sdp, params) => {
+  let tests = [ test_52_1, test_52_2 ];
+  return concat(tests.map(t => t(sdp, params)));
 };
 
 const section_57 = (sdp, params) => {
@@ -273,7 +329,7 @@ const section_57 = (sdp, params) => {
 };
 
 const allSections = (sdp, params) => {
-  let sections = [ section_50, section_51, section_57 ];
+  let sections = [ section_50, section_51, section_52, section_57 ];
   return concat(sections.map(s => s(sdp, params)));
 };
 
@@ -281,5 +337,6 @@ module.exports = {
   allSections,
   section_50,
   section_51,
+  section_52,
   section_57
 };
