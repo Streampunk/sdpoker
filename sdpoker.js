@@ -39,7 +39,7 @@ const args = yargs
   .describe('checkEndings', 'Check line endings are CRLF, no other CR/LF.')
   .describe('should', 'As well as shall, also check all should clauses.')
   .describe('noCopy', 'Fail obvious copies of the ST 2110-10 SDP example')
-  .describe('duplicate', 'Expect duplicate streams.')
+  .describe('duplicate', 'Expect duplicate streams aka ST 2022-7.')
   .describe('videoOnly', 'Describes only SMPTE ST 2110-20 streams.')
   .describe('channelOrder', 'Expect audio with ST2110-30 channel-order.')
   .describe('useIP4', 'All addresses expressed in IP v4 notation.')
