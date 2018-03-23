@@ -118,7 +118,7 @@ let params = {
 
 # Tests
 
-For now, please see the comments in files `check4566.js` and `checkST2110.js` for a description of the tests. A more formal and separate list may be provided in the future.
+For now, please see the comments in files `checkRFC4566.js` and `checkST2110.js` for a description of the tests. A more formal and separate list may be provided in the future.
 
 # Enhancements
 
