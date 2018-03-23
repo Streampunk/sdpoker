@@ -54,7 +54,7 @@ If the `nmos` flag is set to `true`, the SDP file is required to be retrieved ov
 
 The value of a fulfilled promise is the contents of an SDP file as a string. SDP files are assumed to be UTF8 character sets. Pass the result into the `check4566` and `checkST2110` methods.
 
-### Check 4566
+### Check RFC4566
 
 The `checkRFC4566(sdp, params)` takes a string representation of the contents of an SDP file (`sdp`) and runs structural tests, format tests and some field specific tests relevant to SMPTE ST 2110. This is not an exhaustive SDP file tester.
 
@@ -62,7 +62,7 @@ For example:
 
 ```javascript
 getSDP('examples/st2110-10.sdp')
-  .then(sdp => check4566(sdp, { should: true }))
+  .then(sdp => checkRFC4566(sdp, { should: true }))
   .then(errs => { if (errs.length > 0) console.log(errs); })
   .catch(console.error);
 ```
