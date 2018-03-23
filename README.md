@@ -10,6 +10,10 @@ SDPoker is part of the [zenmos](https://github.com/Streampunk/zenmos) project to
 
 # Installation
 
+## Prerequisite
+
+If not already installed, install [Node.JS LTS](https://nodejs.org/) for your platform.
+
 ## Command line
 
 Install SDPoker locally as follows (use `sudo` where appropriate):
@@ -20,7 +24,7 @@ To run SDPoker, append a filename or URL to a SDP file:
 
     sdpoker <file_or_url>
 
-Note that the tool only prints an output if the tests fail. A successful test returns immediately.
+Note that the tool only prints an output if the tests fail. A successful test returns immediately with nothing printed and an exit code of `0`.
 
 A number of options can be used to configure the behavior of the test. To see the list, run:
 
