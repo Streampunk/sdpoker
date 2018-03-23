@@ -188,7 +188,6 @@ const test_52_2 = (sdp, params) => {
   let lines = splitLines(sdp);
   for ( let x = 0 ; x < lines.length ; x++ ) {
     if (lines[x].startsWith('o=')) {
-      debugger;
       let oMatch = lines[x].match(oPattern);
       if (!oMatch) {
         continue;
