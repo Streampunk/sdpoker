@@ -62,6 +62,11 @@ const followedBy = {
     'a': { 'a': 'media', 'm' : 'media' }
   }
 };
+const cPattern = /^c=IN\s+(IP[46])\s+([^\s/]+)(\/\d+)?(\/[1-9]\d*)?$/;
+const ip4Pattern = /^([1-9]\d?\d?)\.(\d\d?\d?)\.(\d\d?\d?)\.(\d\d?\d?)$/;
+// Tne following is a very basic test of IPv6 addresses
+const ip6Pattern = /^[0-9a-f]*:[0-9a-f]*(:[0-9a-f]+)*:[0-9a-f]+$/;
+const multiPattern = /^((22[4-9]|23[0-9])(\.(\d\d?\d?)){3})|(ff[0-7][123458e]::[^\s]+)$/;
 
 // Section 5 Test 1 - check if line endings are all CRLF
 const test50_1 = sdp => {
@@ -148,7 +153,108 @@ const test51_1 = lines => {
   return errors;
 };
 
-const section50 = (sdp, params) => {
+// Section 5.7 Test 1 - Must have c either at session level or for each streams
+const test_57_1 = sdp => {
+  let errors = [];
+  let lines = splitLines(sdp);
+  let streamCount = 0;
+  let cFound = false;
+  for ( let x = 0 ; x < lines.length ; x++ ) {
+    if (lines[x].startsWith('m=')) {
+      if (cFound === false && streamCount > 0) {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, no connection data ("c=") field was found, as per RFC 4566 Section 5.7.`));
+      }
+      cFound = false;
+      streamCount++;
+      continue;
+    }
+    if (lines[x].startsWith('c=')) {
+      cFound = true;
+      if (streamCount === 0) {
+        break;
+      }
+    }
+  }
+  if (cFound === false) {
+    errors.push(new Error(`Line ${lines.length}: For ${streamCount ? 'stream ' + streamCount : 'all streams'}, no connection data ("c=") field was found, as per RFC 4566 Section 5.7.`));
+  }
+  return errors;
+};
+
+// Section 5.7 Test 2 - Must be IN IP4 or IN IP6, and if multicast must have valid TTL
+const test_57_2 = (sdp, params) => {
+  let errors = [];
+  let lines = splitLines(sdp);
+  for ( let x = 0 ; x < lines.length ; x++ ) {
+    if (lines[x].startsWith('c=')) {
+      let cMatch = lines[x].match(cPattern);
+      if (!cMatch) {
+        errors.push(new Error(`Line ${x + 1}: Connection data field does not match an acceptable pattern, as per RFC 4566 Section 5.7 and SMPTE 2110-10 Section 6.1.`));
+        continue;
+      }
+      if (params.useIP4 === true && cMatch[1] !== 'IP4') {
+        errors.push(new Error(`Line ${x + 1}: Configuration requests IPv4 but connection data field address type is '${cMatch[1]}'.`));
+      }
+      if (params.useIP6 === true && cMatch[1] !== 'IP6') {
+        errors.push(new Error(`Line ${x + 1}: Configuration requests IPv6 but connection data field address type is '${cMatch[1]}'.`));
+      }
+      let addrMatch = cMatch[2].match(ip4Pattern);
+      if (addrMatch) {
+        let ip0 = +addrMatch[1];
+        if (ip0 >= 224 && ip0 <= 239) { // Entering IPv4 Multicast land
+          if (typeof addrMatch[2] === 'undefined') {
+            errors.push(new Error(`Line ${x + 1}: Connection data fields using multicast addresses must have a TTL field, as per RFC 4566 Section 5.7.`));
+          } else {
+            let ttl = +addrMatch[2];
+            if (ttl < 0 || ttl > 255) {
+              errors.push(new Error(`Line ${x + 1}: Multicast TTL value must be in the range 0-255 and '${ttl}' provided, as per RFC 4566 Section 5.7.`));
+            }
+            // TODO check length of TTL string ... 0001 should not be acceptable
+          }
+        }
+      }
+    }
+  }
+  return errors;
+};
+
+// Section 5.7 Test 3 - Check is valid address type
+const test_57_3 = (sdp, params) => {
+  let errors = [];
+  let lines = splitLines(sdp);
+  for ( let x = 0 ; x < lines.length ; x++ ) {
+    if (lines[x].startsWith('c=')) {
+      let addrMatch = lines[x].match(cPattern);
+      if (!addrMatch) {
+        continue;
+      }
+      if (params.useIP4 === true) {
+        if (!ip4Pattern.test(addrMatch[2])) {
+          errors.push(new Error(`Line ${x + 1}: IPv4 addresses requested by configuration and connection data field address '${addrMatch[2]}' is not.`));
+        }
+      }
+      if (params.useIP6 === true) {
+        if (!ip6Pattern.test(addrMatch[2])) {
+          errors.push(new Error(`Line ${x + 1}: IPv6 addresses requested by configuration and connection data field address '${addrMatch[2]}' is not.`));
+        }
+      }
+      if (params.multicast === true) {
+        if (!multiPattern.test(addrMatch[2])) {
+          errors.push(new Error(`Line ${x + 1}: Multicast connections requested by configuration and connection data field address '${addrMatch[2]}' is unicast.`));
+        }
+      }
+      if (params.unicast === true) {
+        if (multiPattern.test(addrMatch[2])) {
+          errors.push(new Error(`Line ${x + 1}: Unicast connections requested by configuration and connection data field address '${addrMatch[2]} is multicast.`));
+        }
+      }
+    }
+  }
+  return errors;
+};
+// TODO Future work - test ability to join multicast group or DNS lookup address
+
+const section_50 = (sdp, params) => {
   let endTest = params.checkEndings ? test50_1(sdp, params.checkEndings) : [];
   // TODO decide whether to continue if line error endings are bad?
   let lines = splitLines(sdp);
@@ -156,18 +262,24 @@ const section50 = (sdp, params) => {
   return concat(mainTests.map(t => t(lines, params))).concat(endTest);
 };
 
-const section51 = (sdp, params) => {
+const section_51 = (sdp, params) => {
   let lines = splitLines(sdp);
   return test51_1(lines, params);
 };
 
+const section_57 = (sdp, params) => {
+  let tests = [ test_57_1, test_57_2, test_57_3 ];
+  return concat(tests.map(s => s(sdp, params)));
+};
+
 const allSections = (sdp, params) => {
-  let sections = [ section50, section51 ];
+  let sections = [ section_50, section_51, section_57 ];
   return concat(sections.map(s => s(sdp, params)));
 };
 
 module.exports = {
   allSections,
-  section50,
-  section51
+  section_50,
+  section_51,
+  section_57
 };

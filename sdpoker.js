@@ -27,8 +27,12 @@ const args = yargs
   .default('duplicate', false)
   .default('videoOnly', false)
   .default('channelOrder', false)
+  .default('useIP4', false)
+  .default('useIP6', false)
+  .default('multicast', false)
+  .default('unicast', false)
   .boolean([ 'nmos', 'checkEndings', 'should', 'noCopy', 'duplicate',
-    'videoOnly', 'channelOrder' ])
+    'videoOnly', 'channelOrder', 'useIP4', 'useIP6', 'multicast', 'unicast' ])
   .usage('Check an SDP file for conformance with RFC4566 and SMPTE ST 2110.\n' +
     'Usage: $0 [options] <sdp_file or HTTP URL>')
   .describe('nmos', 'Check for compliance with NMOS rules.')
@@ -38,9 +42,19 @@ const args = yargs
   .describe('duplicate', 'Expect duplicate streams.')
   .describe('videoOnly', 'Describes only SMPTE ST 2110-20 streams.')
   .describe('channelOrder', 'Expect audio with ST2110-30 channel-order.')
+  .describe('useIP4', 'All addresses expressed in IP v4 notation.')
+  .describe('useIP6', 'All addresses expressed in IP v6 notation.')
+  .describe('multicast', 'Connection addresses must be multicast.')
+  .describe('unicast', 'Connection addresses must be unicast.')
   .check(argv => {
     if (!argv._[0].startsWith('http')) {
       accessSync(argv._[0], R_OK);
+    }
+    if (argv.useIP4 && argv.useIP6) {
+      throw new Error('Cannot set both useIP4 and useIP6 flags at the same time.');
+    }
+    if (argv.multicast && argv.unicast) {
+      throw new Error('Cannot set both multicast and unicast flags at the same time.');
     }
     return true;
   })
