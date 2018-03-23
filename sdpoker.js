@@ -47,6 +47,9 @@ const args = yargs
   .describe('multicast', 'Connection addresses must be multicast.')
   .describe('unicast', 'Connection addresses must be unicast.')
   .check(argv => {
+    if (argv._.length < 1) {
+      throw new Error('File name or URL for SDP file must be provided.');
+    }
     if (!argv._[0].startsWith('http')) {
       accessSync(argv._[0], R_OK);
     }

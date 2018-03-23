@@ -1,6 +1,6 @@
 # SDPoker
 
-CLI tool and library for testing SMPTE ST2110 SDP files. The tool attempts to apply a number of rules that test relevant clauses of [RFC 4566](https://tools.ietf.org/html/rfc4566), SMPTE ST 2110-10/20/30 and AES-67. The tool currently has 105 possible tests.
+CLI tool and library for testing SMPTE ST2110 Session Description Protocol (SDP) files. The tool attempts to apply a number of rules that test relevant clauses of [RFC 4566](https://tools.ietf.org/html/rfc4566), SMPTE ST 2110-10/20/30 and AES-67. The tool currently has 105 possible tests.
 
 Just because an SDP passes these tests does not mean it is 100% valid. However, if it fails one of tests, the file is likely to need some work!
 
@@ -132,7 +132,7 @@ The following items are known deficiencies of SDPoker and may be added in the fu
 * Testing ST 2110-30 audio streams against conformance level.
 * Ability to run the tests within a framework like [tape](https://www.npmjs.com/package/tape).
 
-Pull requests and issues will be resolved when the developers have sufficient time available. If you are interested in sponsoring the development of this software or supporting its ongoing maintenance, please contact [Streampunk Media](https://www.streampunk.media). (furnace@streampunk.media).
+Pull requests and issues will be resolved when the developers have sufficient time available. If you are interested in sponsoring the development of this software or supporting its ongoing maintenance, please contact [Streampunk Media](https://www.streampunk.media) (furnace@streampunk.media).
 
 # License
 
