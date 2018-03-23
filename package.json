@@ -1,6 +1,6 @@
 {
   "name": "sdpoker",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "CLI tool and library for testing SMPTE ST2110 files.",
   "main": "index.js",
   "scripts": {
