@@ -16,7 +16,7 @@ If not already installed, install [Node.JS LTS](https://nodejs.org/) for your pl
 
 ## Command line
 
-Install SDPoker locally as follows (use `sudo` where appropriate):
+Install SDPoker globally as follows (use `sudo` where appropriate):
 
     npm install -g sdpoker
 
@@ -56,7 +56,7 @@ getSDP('http://localhost:3123/sdps/video_stream_1.sdp')
 
 If the `nmos` flag is set to `true`, the SDP file is required to be retrieved over HTTP and must have filename extension `.sdp`.
 
-The value of a fulfilled promise is the contents of an SDP file as a string. SDP files are assumed to be UTF8 character sets. Pass the result into the `check4566` and `checkST2110` methods.
+The value of a fulfilled promise is the contents of an SDP file as a string. SDP files are assumed to be UTF8 character sets. Pass the result into the `checkRFC4566` and `checkST2110` methods.
 
 ### Check RFC4566
 
@@ -83,7 +83,7 @@ For example:
 
 ```javascript
 getSDP('examples/st2110-10.sdp')
-  .then(sdp => check4566(sdp, { multicast: true }))
+  .then(sdp => checkST2110(sdp, { multicast: true }))
   .then(errs => { if (errs.length > 0)
     console.log(errs.map(e => e ? e.message : undefined));
   })
