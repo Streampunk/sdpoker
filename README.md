@@ -136,6 +136,7 @@ The following items are known deficiencies of SDPoker and may be added in the fu
 * Testing that, for AES-67 audio streams, the `ptime` attribute matches the sample rate and number of channels.
 * Testing ST 2110-30 audio streams against conformance level.
 * Ability to run the tests within a framework like [tape](https://www.npmjs.com/package/tape).
+* Retrieval of SDP files over HTTPS.
 
 Pull requests and issues will be resolved when the developers have sufficient time available. If you are interested in sponsoring the development of this software or supporting its ongoing maintenance, please contact [Streampunk Media](https://www.streampunk.media) (furnace@streampunk.media).
 
