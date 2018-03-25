@@ -26,13 +26,15 @@ const args = yargs
   .default('noCopy', true)
   .default('duplicate', false)
   .default('videoOnly', false)
+  .default('audioOnly', false)
   .default('channelOrder', false)
   .default('useIP4', false)
   .default('useIP6', false)
   .default('multicast', false)
   .default('unicast', false)
   .boolean([ 'nmos', 'checkEndings', 'should', 'noCopy', 'duplicate',
-    'videoOnly', 'channelOrder', 'useIP4', 'useIP6', 'multicast', 'unicast' ])
+    'videoOnly', 'audioOnly', 'channelOrder',
+    'useIP4', 'useIP6', 'multicast', 'unicast' ])
   .usage('Check an SDP file for conformance with RFC4566 and SMPTE ST 2110.\n' +
     'Usage: $0 [options] <sdp_file or HTTP URL>')
   .describe('nmos', 'Check for compliance with NMOS rules.')
@@ -41,6 +43,7 @@ const args = yargs
   .describe('noCopy', 'Fail obvious copies of the ST 2110-10 SDP example')
   .describe('duplicate', 'Expect duplicate streams aka ST 2022-7.')
   .describe('videoOnly', 'Describes only SMPTE ST 2110-20 streams.')
+  .describe('audioOnly', 'Describes only SMPTE ST 2110-30 streams.')
   .describe('channelOrder', 'Expect audio with ST2110-30 channel-order.')
   .describe('useIP4', 'All addresses expressed in IP v4 notation.')
   .describe('useIP6', 'All addresses expressed in IP v6 notation.')
@@ -58,6 +61,9 @@ const args = yargs
     }
     if (argv.multicast && argv.unicast) {
       throw new Error('Cannot set both multicast and unicast flags at the same time.');
+    }
+    if (argv.audioOnly && argv.videoOnly) {
+      throw new Error('Cannot set both videoOnly and audioOnly flags at the same time.');
     }
     return true;
   })

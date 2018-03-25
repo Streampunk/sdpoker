@@ -1,12 +1,12 @@
 # SDPoker
 
-CLI tool and library for testing SMPTE ST2110 Session Description Protocol (SDP) files. The tool attempts to apply a number of rules that test relevant clauses of [RFC 4566](https://tools.ietf.org/html/rfc4566), SMPTE ST 2110-10/20/30 and AES-67. The tool currently has 111 possible tests.
+CLI tool and library for testing SMPTE ST2110 Session Description Protocol (SDP) files. The tool attempts to apply a number of rules that test relevant clauses of [RFC 4566](https://tools.ietf.org/html/rfc4566), SMPTE ST 2110-10/20/30 and AES-67. The tool currently has 112 possible tests.
 
 Just because an SDP passes these tests does not mean it is 100% valid. However, if it fails one of the tests, the file is likely to need some work!
 
 This is an open source tool contributed for the benefit of anyone developing and deploying professional IP media systems. Please use pull requests and issues to help to enhance it. Please do report any false positives or false negatives found by these tests. A list of possible [enhancements](#enhancements) is provided below.
 
-SDPoker is part of the [zenmos](https://github.com/Streampunk/zenmos) project to develop and automatic testing tool for AMWAs [Network Media Open Specifications](https://nmos.tv/).
+SDPoker is part of the [zenmos](https://github.com/Streampunk/zenmos) project to develop an automatic testing tool for AMWAs [Network Media Open Specifications](https://nmos.tv/).
 
 # Installation
 
@@ -104,6 +104,7 @@ The parameters of the library are binary flags that match the command line optio
 * `noCopy`: Fail obvious copies of the ST 2110-10 SDP example.
 * `duplicate`: Expect duplicate streams aka ST 2022-7.
 * `videoOnly`: Describes only SMPTE ST 2110-20 streams.
+* `audioOnly`: Describes only SMPTE ST 2110-30 streams.
 * `channelOrder`: Expect audio with ST2110-30 channel-order.
 * `useIP4`: All addresses expressed in IP v4 notation.
 * `useIP6`: All addresses expressed in IP v6 notation.

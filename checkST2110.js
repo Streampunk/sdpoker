@@ -955,6 +955,20 @@ const test_30_62_4 = (sdp, params) => {
   return errors;
 };
 
+// Test ST 2110-20 Section 7.1 Test 1 - If required, check all streams are video
+const test_30_62_5 = (sdp, params) => {
+  let streams = sdp.split(/[\r\n]m=/);
+  let errors = [];
+  if (params.audioOnly) {
+    for ( let s = 1 ; s < streams.length ; s++ ) {
+      if (!streams[s].startsWith('audio')) {
+        errors.push(new Error(`Stream ${s}: Media type is not 'audio' and audio only files are in test.`));
+      }
+    }
+  }
+  return errors;
+};
+
 const section_10_74 = (sdp, params) => {
   let tests = [ test_10_74_1 ];
   return concat(tests.map(t => t(sdp, params)));
@@ -1008,7 +1022,7 @@ const section_20_76 = (sdp, params) => {
 };
 
 const section_30_62 = (sdp, params) => {
-  let tests = [ test_30_62_1, test_30_62_2, test_30_62_3, test_30_62_4 ];
+  let tests = [ test_30_62_1, test_30_62_2, test_30_62_3, test_30_62_4, test_30_62_5 ];
   return concat(tests.map(t => t(sdp, params)));
 };
 
