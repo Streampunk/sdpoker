@@ -2,7 +2,7 @@
 
 CLI tool and library for testing SMPTE ST2110 Session Description Protocol (SDP) files. The tool attempts to apply a number of rules that test relevant clauses of [RFC 4566](https://tools.ietf.org/html/rfc4566), SMPTE ST 2110-10/20/30 and AES-67. The tool currently has 112 possible tests.
 
-Just because an SDP passes these tests does not mean it is 100% valid. However, if it fails one of the tests, the file is likely to need some work!
+Just because an SDP file passes these tests does not mean it is 100% valid. However, if it fails one of the tests, the file is likely to need some work!
 
 This is an open source tool contributed for the benefit of anyone developing and deploying professional IP media systems. Please use pull requests and issues to help to enhance it. Please do report any false positives or false negatives found by these tests. A list of possible [enhancements](#enhancements) is provided below.
 
