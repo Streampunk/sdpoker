@@ -22,13 +22,13 @@ const mediaclkDirectPattern = /[\r\n]a=mediaclk:direct=\d+\s+/g;
 const tsrefclkPattern = /[\r\n]a=ts-refclk/;
 const ptpPattern = /(([0-9a-fA-F]{2}-){7}[0-9a-fA-F]{2})(:(\d+|domain-name=\S+))?/;
 const macPattern = /(([0-9a-fA-F]{2}-){5}[0-9a-fA-F]{2})/;
-const dupPattern = /[\r\n]m=[\s\S]+a=ssrc-group:DUP|^a=group:DUP[\s\S]+m=/;
+const dupPattern = /[\r\n]m=[\s\S]+a=ssrc-group:DUP|[\r\n]a=group:DUP[\s\S]+m=/;
 const ssrcGroupPattern = /a=ssrc-group:DUP\s+(\d+)\s+(\d+)/;
 const groupPattern = /a=group:DUP\s+(\S+)\s+(\S+)/;
 const ssrcPattern = /a=ssrc:(\d+)\s/;
 const videoPattern = /video\s+(\d+)(\/\d+)?\s+(RTP\/S?AVP)\s+(\d+)/;
 const rtpmapPattern = /a=rtpmap:(\d+)\s(\S+)\/(\d+)\s*/;
-const fmtpPattern = /a=fmtp:(\d+)(?:\s+([^\s=;]+)(?:=([^\s;]+))?;)*$/;
+const fmtpPattern = /a=fmtp:(\d+)\s+(?:([^\s=;]+)(?:=([^\s;]+))?;\s+)*$/;
 const fmtpParams = /([^\s=;]+(?:=[^\s;]+)?);/g;
 const integerPattern = /^[1-9]\d*$/;
 const frameRatePattern = /^([1-9]\d*)(?:\/([1-9]\d*))?$/;
@@ -514,7 +514,7 @@ const test_20_72_1 = sdp => {
 const test_20_72_2 = sdp => {
   let [ mtParams, errors ] = extractMTParams(sdp);
   for ( let stream of mtParams ) {
-    if (typeof stream.width !== undefined) { // Test 1 confirms
+    if (typeof stream.width !== 'undefined' && typeof stream.height !== 'undefined') { // Test 1 confirms
       let width = +stream.width;
       if (isNaN(width) || integerPattern.test(stream.width) === false) {
         errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, parameter 'width' is not an integer value, as per SMPTE ST 2110-20 Section 7.2.`));
@@ -538,7 +538,7 @@ const greatestCommonDivisor = (a, b) => !b ? a : greatestCommonDivisor(b, a % b)
 const test_20_72_3 = sdp => {
   let [ mtParams, errors ] = extractMTParams(sdp);
   for ( let stream of mtParams ) {
-    if (typeof stream.exactframerate !== undefined) {
+    if (typeof stream.exactframerate !== 'undefined') {
       let frMatch = stream.exactframerate.match(frameRatePattern);
       if (!frMatch) {
         errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, parameter 'exactframerate' does not match an acceptable pattern, as per SMPTE ST 2110-20 Section 7.2.`));
@@ -576,7 +576,7 @@ const packingModes = [ '2110GPM', '2110BPM' ];
 const test_20_72_4 = sdp => {
   let [ mtParams, errors ] = extractMTParams(sdp);
   for ( let stream of mtParams ) {
-    if (typeof stream.PM !== undefined) {
+    if (typeof stream.PM !== 'undefined') {
       if (packingModes.indexOf(stream.PM) < 0) {
         errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, parameter 'PM' (packing mode) is not one of the defined values, as per SMPTE ST 2110-20 Sections 7.2 and 6.3.`));
       }
