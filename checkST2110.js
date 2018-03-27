@@ -464,7 +464,8 @@ const extractMTParams = (sdp, params = {}) => {
       continue;
     }
     if (lines[x].startsWith('a=fmtp') && payloadType >= 0) {
-      if (!fmtpPattern.test(lines[x])) {
+      let fmtpLine = params.whitespace === true ? lines[x] : lines[x].trim() + ' ';
+      if (!fmtpPattern.test(fmtpLine)) {
         continue;
       }
       let paramsMatch = lines[x].match(fmtpParams);
@@ -512,8 +513,8 @@ const test_20_72_1 = sdp => {
 };
 
 // Test ST 2110-20 Section 7.2 Test 2 - Check width and height are within bounds
-const test_20_72_2 = sdp => {
-  let [ mtParams, errors ] = extractMTParams(sdp);
+const test_20_72_2 = (sdp, params) => {
+  let [ mtParams, errors ] = extractMTParams(sdp, params);
   for ( let stream of mtParams ) {
     if (typeof stream.width !== 'undefined' && typeof stream.height !== 'undefined') { // Test 1 confirms
       let width = +stream.width;
@@ -536,8 +537,8 @@ const test_20_72_2 = sdp => {
 const greatestCommonDivisor = (a, b) => !b ? a : greatestCommonDivisor(b, a % b);
 
 // Test ST 2110-20 Section 7.2 Test 3 - Exactframerate is as specified
-const test_20_72_3 = sdp => {
-  let [ mtParams, errors ] = extractMTParams(sdp);
+const test_20_72_3 = (sdp, params) => {
+  let [ mtParams, errors ] = extractMTParams(sdp, params);
   for ( let stream of mtParams ) {
     if (typeof stream.exactframerate !== 'undefined') {
       let frMatch = stream.exactframerate.match(frameRatePattern);
@@ -574,8 +575,8 @@ const test_20_72_3 = sdp => {
 const packingModes = [ '2110GPM', '2110BPM' ];
 
 // Test ST 2110-20 Section 7.2 Test 4 - Check packing mode as per spec.
-const test_20_72_4 = sdp => {
-  let [ mtParams, errors ] = extractMTParams(sdp);
+const test_20_72_4 = (sdp, params) => {
+  let [ mtParams, errors ] = extractMTParams(sdp, params);
   for ( let stream of mtParams ) {
     if (typeof stream.PM !== 'undefined') {
       if (packingModes.indexOf(stream.PM) < 0) {
@@ -587,8 +588,8 @@ const test_20_72_4 = sdp => {
 };
 
 // Test ST 2110-20 Section 7.2 Test 5 - Check SSN is the required fixed value
-const test_20_72_5 = sdp => {
-  let [ mtParams, errors ] = extractMTParams(sdp);
+const test_20_72_5 = (sdp, params) => {
+  let [ mtParams, errors ] = extractMTParams(sdp, params);
   for ( let stream of mtParams ) {
     if (typeof stream.SSN !== 'undefined') {
       if (stream.SSN !== 'ST2110-20:2017') {
@@ -600,8 +601,8 @@ const test_20_72_5 = sdp => {
 };
 
 // Test ST 2110-20 Section 7.3 Test 1 - Interlace is name only
-const test_20_73_1 = sdp => {
-  let [ mtParams, errors ] = extractMTParams(sdp);
+const test_20_73_1 = (sdp, params) => {
+  let [ mtParams, errors ] = extractMTParams(sdp, params);
   for ( let stream of mtParams ) {
     if (typeof stream.interlace !== 'undefined') {
       if (stream.interlace !== '') {
@@ -613,8 +614,8 @@ const test_20_73_1 = sdp => {
 };
 
 // Test ST 2110-20 Section 7.3 Test 2- Segmented is name only and interlace is also signalled
-const test_20_73_2 = sdp => {
-  let [ mtParams, errors ] = extractMTParams(sdp);
+const test_20_73_2 = (sdp, params) => {
+  let [ mtParams, errors ] = extractMTParams(sdp, params);
   for ( let stream of mtParams ) {
     if (typeof stream.segmented !== 'undefined') {
       if (stream.segmented !== '') {
@@ -631,8 +632,8 @@ const test_20_73_2 = sdp => {
 const rangePermitted = [ 'NARROW', 'FULLPROTECT', 'FULL' ];
 
 // Test ST 2110-20 Section 7.3 Test 3 - RANGE has acceptable values in colorimetry context
-const test_20_73_3 = sdp => {
-  let [ mtParams, errors ] = extractMTParams(sdp);
+const test_20_73_3 = (sdp, params) => {
+  let [ mtParams, errors ] = extractMTParams(sdp, params);
   for ( let stream of mtParams ) {
     if (typeof stream.RANGE !== 'undefined') {
       if (stream.colorimetry === 'BT2100') {
@@ -652,8 +653,8 @@ const test_20_73_3 = sdp => {
 const maxudpPermitted = [ '1460', '8960' ];
 
 // Test ST 2110-20 Section 7.3 Test 4 - MAXUDP has acceptable values wrt ST 2110-10
-const test_20_73_4 = sdp => {
-  let [ mtParams, errors ] = extractMTParams(sdp);
+const test_20_73_4 = (sdp, params) => {
+  let [ mtParams, errors ] = extractMTParams(sdp, params);
   for ( let stream of mtParams ) {
     if (typeof stream.MAXUDP !== 'undefined') {
       if (maxudpPermitted.indexOf(stream.MAXUDP) < 0) {
@@ -665,8 +666,8 @@ const test_20_73_4 = sdp => {
 };
 
 // Test ST 2110-20 Section 7.3 Test 5 - PAR is an acceptable value
-const test_20_73_5 = sdp => {
-  let [ mtParams, errors ] = extractMTParams(sdp);
+const test_20_73_5 = (sdp, params) => {
+  let [ mtParams, errors ] = extractMTParams(sdp, params);
   for ( let stream of mtParams ) {
     if (typeof stream.PAR !== 'undefined') {
       let parMatch = stream.PAR.match(parPattern);
@@ -691,8 +692,8 @@ const samplingPermitted = [
 ];
 
 // Test ST 2110-20 Section 7.4 Test 1 - Sampling is a defined value
-const test_20_74_1 = sdp => {
-  let [ mtParams, errors ] = extractMTParams(sdp);
+const test_20_74_1 = (sdp, params) => {
+  let [ mtParams, errors ] = extractMTParams(sdp, params);
   for ( let stream of mtParams ) {
     if (typeof stream.sampling !== 'undefined') {
       if (samplingPermitted.indexOf(stream.sampling) < 0) {
@@ -708,8 +709,8 @@ const test_20_74_1 = sdp => {
 const depthPermitted = [ '8', '10', '12', '16', '16f' ];
 
 // Test ST 2110-20 Section 7.4 Test 2 - Bit depth is a permitted value
-const test_20_74_2 = sdp => {
-  let [ mtParams, errors ] = extractMTParams(sdp);
+const test_20_74_2 = (sdp, params) => {
+  let [ mtParams, errors ] = extractMTParams(sdp, params);
   for ( let stream of mtParams ) {
     if (typeof stream.depth !== 'undefined') {
       if (depthPermitted.indexOf(stream.depth) < 0) {
@@ -725,8 +726,8 @@ const colorPermitted = [
   'ST2065-3', 'UNSPECIFIED', 'XYZ' ];
 
 // Test ST 2110-20 Section 7.5 Test 1 - Colorimetry is a permitted value.
-const test_20_75_1 = sdp => {
-  let [ mtParams, errors ] = extractMTParams(sdp);
+const test_20_75_1 = (sdp, params) => {
+  let [ mtParams, errors ] = extractMTParams(sdp, params);
   for ( let stream of mtParams ) {
     if (typeof stream.colorimetry !== 'undefined') {
       if (colorPermitted.indexOf(stream.colorimetry) < 0) {
@@ -742,7 +743,7 @@ const test_20_75_2 = (sdp, params) => {
   if (params.should === false) {
     return [];
   }
-  let [ mtParams, errors ] = extractMTParams(sdp);
+  let [ mtParams, errors ] = extractMTParams(sdp, params);
   for ( let stream of mtParams ) {
     if (typeof stream.colorimetry !== 'undefined') {
       if (stream.colorimetry === 'BT2100' && typeof stream.RANGE === 'undefined') {
@@ -759,8 +760,8 @@ const tcsPermitted = [
 ];
 
 // Test ST 2110-20 Section 7.6 Test 1 - TCS is a permitted value
-const test_20_76_1 = sdp => {
-  let [ mtParams, errors ] = extractMTParams(sdp);
+const test_20_76_1 = (sdp, params) => {
+  let [ mtParams, errors ] = extractMTParams(sdp, params);
   for ( let stream of mtParams ) {
     if (typeof stream.TCS !== 'undefined') {
       if (tcsPermitted.indexOf(stream.TCS) < 0) {
