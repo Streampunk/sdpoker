@@ -100,6 +100,7 @@ The parameters of the library are binary flags that match the command line optio
 
 * `nmos`: Check for compliance with NMOS rules.
 * `checkEndings`: Check line endings are CRLF, no other CR/LF.
+* `whitespace`: Strict check of adherence to whitespace rules.
 * `should`: As well as shall, also check all should clauses.
 * `noCopy`: Fail obvious copies of the ST 2110-10 SDP example.
 * `duplicate`: Expect duplicate streams aka ST 2022-7.
@@ -120,6 +121,8 @@ let params = {
   multicast: true
 };
 ```
+
+Currently, the `whitespace` flag forces a check as to whether the format parameter field (`a=fmtp`) has a whitespace character after the final semicolon on the line. Strict reading of the standard suggests that it should, although the this could also be viewed as ambiguous as the term _carriage return_ can also be interpreted as whitespace. Further white space checks may be added, such as should a space be included between `a=source-filter:` and `incl`.
 
 # Tests
 

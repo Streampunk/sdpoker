@@ -409,7 +409,7 @@ const test_20_71_3 = sdp => {
 };
 
 // Test ST 2110-20 Section 7.1 Test 4 - All video streams have format parameters
-const test_20_71_4 = sdp => {
+const test_20_71_4 = (sdp, params) => {
   let errors = [];
   let lines = splitLines(sdp);
   let fmtpInStream = true;
@@ -427,9 +427,10 @@ const test_20_71_4 = sdp => {
       continue;
     }
     if (lines[x].startsWith('a=fmtp') && payloadType >= 0) {
-      let fmtpMatch = lines[x].match(fmtpPattern);
+      let fmtpLine = params.whitespace === true ? lines[x] : lines[x].trim() + ' ';
+      let fmtpMatch = fmtpLine.match(fmtpPattern);
       if (!fmtpMatch) {
-        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, found an 'fmtp' attribute that is not an acceptable pattern.`));
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, found an 'fmtp' attribute that is not an acceptable pattern. Note: In strict whitespace adherence, line must have a space after the last semicolon.`));
         continue;
       }
       if (fmtpInStream) {
