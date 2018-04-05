@@ -33,9 +33,10 @@ const args = yargs
   .default('useIP6', false)
   .default('multicast', false)
   .default('unicast', false)
+  .default('shaping', false)
   .boolean([ 'nmos', 'checkEndings', 'whitespace', 'should', 'noCopy', 'duplicate',
     'videoOnly', 'audioOnly', 'channelOrder',
-    'useIP4', 'useIP6', 'multicast', 'unicast' ])
+    'useIP4', 'useIP6', 'multicast', 'unicast', 'shaping' ])
   .usage('Check an SDP file for conformance with RFC4566 and SMPTE ST 2110.\n' +
     'Usage: $0 [options] <sdp_file or HTTP URL>')
   .describe('nmos', 'Check for compliance with NMOS rules.')
@@ -51,6 +52,7 @@ const args = yargs
   .describe('useIP6', 'All addresses expressed in IP v6 notation.')
   .describe('multicast', 'Connection addresses must be multicast.')
   .describe('unicast', 'Connection addresses must be unicast.')
+  .describe('shaping', 'Check adherence to traffic shaping specification.')
   .check(argv => {
     if (argv._.length < 1) {
       throw new Error('File name or URL for SDP file must be provided.');

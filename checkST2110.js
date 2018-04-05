@@ -971,6 +971,84 @@ const test_30_62_5 = (sdp, params) => {
   return errors;
 };
 
+// Test ST 2110-21 Section 8.1 - When traffic shaping, TP parameter is specified.
+const test_21_81_1 = (sdp, params) => {
+  if (params.shaping === false || params.audioOnly === true) {
+    return [];
+  }
+  let [ mtParams, errors ] = extractMTParams(sdp, params);
+  for ( let stream of mtParams ) {
+    if ( typeof stream.TP === 'undefined') {
+      errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, parameter 'TP' is not provided, as required by SMPTE ST 2110-21 Section 8.1.`));
+    }
+  }
+  return errors;
+};
+
+const typesPermitted = [ '2110TPN', '2110TPNL', '2110TPW' ];
+
+// Test ST 2110-21 Section 8.1 - When traffic shaping, TP parameter is an acceptable value
+const test_21_81_2 = (sdp, params) => {
+  if (params.shaping === false || params.audioOnly === true) {
+    return [];
+  }
+  let [ mtParams, errors ] = extractMTParams(sdp, params);
+  for ( let stream of mtParams ) {
+    if ( typeof stream.TP !== 'undefined' ) {
+      if (typesPermitted.indexOf(stream.TP) < 0) {
+        errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, format parameter 'TP' is not one of '2110TPN', '2110TPNL' or '2110TPW', as per SMPTE ST 2110-21 Section 8.1.`));
+      }
+    }
+  }
+  return errors;
+};
+
+// Test ST 2110-21 Section 8.2 - When traffic shaping and TROFF parameter specified, it is an acceptable value
+const test_21_82_1 = (sdp, params) => {
+  if (params.shaping === false || params.audioOnly === true) {
+    return [];
+  }
+  let [ mtParams, errors ] = extractMTParams(sdp, params);
+  for ( let stream of mtParams ) {
+    if ( typeof stream.TROFF !== 'undefined' ) {
+      let troff = +stream.TROFF;
+      if (isNaN(troff)) {
+        errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, TR OFFSET value is not a number, as per SMPTE ST 2110-21 Section 8.2.`));
+        continue;
+      }
+      if (troff < 0) {
+        errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, TR OFFSET cannot be negatibe, as per SMPTE ST 2110-21 Section 8.2.`));
+      }
+      // TODO not clear if this has to be an integer number of microseconds or can be a decimal value?
+    }
+  }
+  return errors;
+};
+
+// Test ST 2110-21 Section 8.2 - When traffic shaping and CMAX parameter specified, it is an acceptable value
+const test_21_82_2 = (sdp, params) => {
+  if (params.shaping === false || params.audioOnly === true) {
+    return [];
+  }
+  let [ mtParams, errors ] = extractMTParams(sdp, params);
+  for ( let stream of mtParams ) {
+    if ( typeof stream.CMAX !== 'undefined' ) {
+      let cmax = +stream.CMAX;
+      if (isNaN(cmax)) {
+        errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, CMAX parameter is not a number, as per SMPTE ST 2110-21 Section 8.2.`));
+        continue;
+      }
+      if (Number.isInteger(cmax) === false) {
+        errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, CMAX parameter in not an integer, as per SMPTE ST 2110-21 Section 8.2.`));
+      }
+      if (cmax < 1) {
+        errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, CMAX parameter makes no sense unless it is a positive value, as per SMPTE ST 2110-21 Section 8.2.`));
+      }
+    }
+  }
+  return errors;
+};
+
 const section_10_74 = (sdp, params) => {
   let tests = [ test_10_74_1 ];
   return concat(tests.map(t => t(sdp, params)));
@@ -1028,6 +1106,16 @@ const section_30_62 = (sdp, params) => {
   return concat(tests.map(t => t(sdp, params)));
 };
 
+const section_21_81 = (sdp, params) => {
+  let tests = [ test_21_81_1, test_21_81_2 ];
+  return concat(tests.map(t => t(sdp, params)));
+};
+
+const section_21_82 = (sdp, params) => {
+  let tests = [ test_21_82_1, test_21_82_2 ];
+  return concat(tests.map(t => t(sdp, params)));
+};
+
 // Test ST2110-10 Appendix B Test 1 - Check that the SDP file given is not a straight copy
 const no_copy = sdp => {
   let lines = splitLines(sdp.trim());
@@ -1049,7 +1137,8 @@ const allSections = (sdp, params) => {
   let sections = [
     section_10_74, section_10_81, section_10_82, section_10_83,
     section_20_71, section_20_72, section_20_73, section_20_74,
-    section_20_75, section_20_76, section_30_62 ];
+    section_20_75, section_20_76, section_30_62,
+    section_21_81, section_21_82  ];
   if (params.noCopy) {
     sections.push(no_copy);
   }
@@ -1068,5 +1157,7 @@ module.exports = {
   section_20_74,
   section_20_75,
   section_20_76,
-  section_30_62
+  section_30_62,
+  section_21_81,
+  section_21_82
 };
