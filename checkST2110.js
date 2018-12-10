@@ -20,7 +20,7 @@ const mediaclkPattern = /[\r\n]a=mediaclk/;
 const mediaclkTypePattern = /[\r\n]a=mediaclk[^\s=]+/g;
 const mediaclkDirectPattern = /[\r\n]a=mediaclk:direct=\d+\s+/g;
 const tsrefclkPattern = /[\r\n]a=ts-refclk/;
-const ptpPattern = /(([0-9a-fA-F]{2}-){7}[0-9a-fA-F]{2})(:(\d+|domain-name=\S+))?/;
+const ptpPattern = /traceable|((([0-9a-fA-F]{2}-){7}[0-9a-fA-F]{2})(:(\d+|domain-name=\S+))?)/;
 const macPattern = /(([0-9a-fA-F]{2}-){5}[0-9a-fA-F]{2})/;
 const dupPattern = /[\r\n]m=[\s\S]+a=ssrc-group:DUP|[\r\n]a=group:DUP[\s\S]+m=/;
 const ssrcGroupPattern = /a=ssrc-group:DUP\s+(\d+)\s+(\d+)/;
@@ -159,7 +159,8 @@ const test_10_82_3 = sdp => {
     if (lines[x].startsWith('a=ts-refclk:ptp=')) {
       let ptpDetails = lines[x].slice(16);
       if (ptpDetails.startsWith('traceable')) {
-        continue; // acceptable form
+        errors.push(new Error(`Line ${x + 1}: An example in the first published version of ST2110 suggested 'traceable' was acceptable without preceeding it with 'IEEE1588-2008'. This is not a permitted form in RFC 7273 and has been corrected later versions of ST2110-10.`));
+        continue; // no longer acceptable form
       }
       if (!ptpDetails.startsWith('IEEE1588-2008:')) {
         errors.push(new Error(`Line ${x + 1}: The only supported PTP versions are 'IEEE1588-2008' and 'traceable', as per SMPTE ST 2110-10 Section 8.2.`));
