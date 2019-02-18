@@ -167,7 +167,7 @@ const test_10_82_3 = sdp => {
         continue;
       }
       if (!ptpPattern.test(ptpDetails.slice(14))) {
-        errors.push(new Error(`Line ${x + 1}: RFC 7273 PTP reference clock attribute parameters for 'ptp-server' do not match accpetable patterns.`));
+        errors.push(new Error(`Line ${x + 1}: RFC 7273 PTP reference clock attribute parameters for 'ptp-server' do not match acceptable patterns.`));
         continue;
       }
       let ptpMatch = ptpDetails.slice(14).match(ptpPattern);
@@ -639,7 +639,7 @@ const test_20_73_3 = (sdp, params) => {
     if (typeof stream.RANGE !== 'undefined') {
       if (stream.colorimetry === 'BT2100') {
         if (stream.RANGE !== 'FULL' && stream.RANGE !== 'NARROW') {
-          errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, format parameter 'RANGE' is '${stream.RANGE}' and not one of the accpetabe values for colorimetry BT.2100 of 'FULL' or 'NARROW', as per SMPTE ST 2110-20 Section 7.3`));
+          errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, format parameter 'RANGE' is '${stream.RANGE}' and not one of the acceptable values for colorimetry BT.2100 of 'FULL' or 'NARROW', as per SMPTE ST 2110-20 Section 7.3`));
         }
         continue;
       }
