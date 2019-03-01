@@ -368,6 +368,7 @@ const test_20_71_3 = sdp => {
   let errors = [];
   let lines = splitLines(sdp);
   let rtpmapInStream = true;
+  let isAncillary = false;
   let payloadType = -1;
   let streamCount = 0;
   for ( let x = 0 ; x < lines.length ; x++ ) {
@@ -378,10 +379,11 @@ const test_20_71_3 = sdp => {
       let videoMatch = lines[x].match(videoPattern);
       payloadType = videoMatch ? +videoMatch[4] : -1;
       rtpmapInStream = false;
+      isAncillary = false;
       streamCount++;
       continue;
     }
-    if (lines[x].startsWith('a=rtpmap') && payloadType >= 0) { // Only process video
+    if (lines[x].startsWith('a=rtpmap') && payloadType >= 0 && !isAncillary) { // Only process video
       let rtpmapMatch = lines[x].match(rtpmapPattern);
       if (!rtpmapMatch) {
         errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, found an 'rtpmap' attribute that is not an acceptable pattern.`));
@@ -395,7 +397,11 @@ const test_20_71_3 = sdp => {
       if (+rtpmapMatch[1] !== payloadType) {
         errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, found an 'rtpmap' attribute with payload type '${rtpmapMatch[1]}' when stream has payload type '${payloadType}'.`));
       }
-      if (rtpmapMatch[2] !== 'raw' ) {
+      if (rtpmapMatch[2] == 'smpte291') { // ancillary data also has 'm=video'
+        isAncillary = true;
+        continue;
+      }
+      else if (rtpmapMatch[2] !== 'raw') {
         errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, encoding name must be media sub-type 'raw', as per SMPTE ST 2110-20 Section 7.1.`));
       }
       if (rtpmapMatch[3] !== '90000') {
@@ -455,6 +461,7 @@ const extractMTParams = (sdp, params = {}) => {
   let mtParams = [];
   let errors = [];
   let lines = splitLines(sdp);
+  let isAncillary = false;
   let streamCount = 0;
   let payloadType = -1;
   for ( let x = 0 ; x < lines.length ; x++ ) {
@@ -462,9 +469,17 @@ const extractMTParams = (sdp, params = {}) => {
       let videoMatch = lines[x].match(videoPattern);
       payloadType = videoMatch ? +videoMatch[4] : -1;
       streamCount++;
+      isAncillary = false;
       continue;
     }
-    if (lines[x].startsWith('a=fmtp') && payloadType >= 0) {
+    if (lines[x].startsWith('a=rtpmap') && payloadType >= 0) {
+      let rtpmapMatch = lines[x].match(rtpmapPattern);
+      if (rtpmapMatch && rtpmapMatch[2] == 'smpte291') { // ancillary data also has 'm=video'
+        isAncillary = true;
+        continue;
+      }
+    }
+    if (lines[x].startsWith('a=fmtp') && payloadType >= 0 && !isAncillary) {
       let fmtpLine = params.whitespace === true ? lines[x] : lines[x].trim() + ' ';
       if (!fmtpPattern.test(fmtpLine)) {
         continue;
