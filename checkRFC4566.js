@@ -73,7 +73,7 @@ const multiPattern = /^((22[4-9]|23[0-9])(\.(\d\d?\d?)){3})|(ff[0-7][123458e]::[
 const test50_1 = sdp => {
   let errors = [];
   if (badEndings.test(sdp)) {
-    errors.push('SDP file contains record ending characters 0x0a and 0x0d separately from the expected CRLF pattern, as per RFC 4566 Section 5.');
+    errors.push(new Error('SDP file contains record ending characters 0x0a and 0x0d separately from the expected CRLF pattern, as per RFC 4566 Section 5.'));
   }
   return errors;
 };
