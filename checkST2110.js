@@ -19,6 +19,7 @@ const concat = arrays => Array.prototype.concat.apply([], arrays);
 const mediaclkPattern = /[\r\n]a=mediaclk/;
 const mediaclkTypePattern = /[\r\n]a=mediaclk[^\s=]+/g;
 const mediaclkDirectPattern = /[\r\n]a=mediaclk:direct=\d+\s+/g;
+const sourceFilterPattern = /a=source-filter:\s(incl|excl)/;
 const tsrefclkPattern = /[\r\n]a=ts-refclk/;
 const ptpPattern = /traceable|((([0-9a-fA-F]{2}-){7}[0-9a-fA-F]{2})(:(\d+|domain-name=\S+))?)/;
 const macPattern = /(([0-9a-fA-F]{2}-){5}[0-9a-fA-F]{2})/;
@@ -50,7 +51,7 @@ a=recvonly
 a=group:DUP primary secondary
 m=video 50000 RTP/AVP 112
 c=IN IP4 239.100.9.10/32
-a=source-filter:incl IN IP4 239.100.9.10 192.168.100.2
+a=source-filter: incl IN IP4 239.100.9.10 192.168.100.2
 a=rtpmap:112 raw/90000
 a=fmtp:112 sampling=YCbCr-4:2:2; width=1280; height=720; exactframerate=60000/1001; depth=10; TCS=SDR; colorimetry=BT709; PM=2110GPM; SSN=ST2110-20:2017;
 a=ts-refclk:ptp=IEEE1588-2008:39-A7-94-FF-FE-07-CB-D0:37
@@ -58,7 +59,7 @@ a=mediaclk:direct=0
 a=mid:primary
 m=video 50020 RTP/AVP 112
 c=IN IP4 239.101.9.10/32
-a=source-filter:incl IN IP4 239.101.9.10 192.168.101.2
+a=source-filter: incl IN IP4 239.101.9.10 192.168.101.2
 a=rtpmap:112 raw/90000
 a=fmtp:112 sampling=YCbCr-4:2:2; width=1280; height=720; exactframerate=60000/1001; depth=10; TCS=SDR; colorimetry=BT709; PM=2110GPM; SSN=ST2110-20:2017;
 a=ts-refclk:ptp=IEEE1588-2008:39-A7-94-FF-FE-07-CB-D0:37
@@ -107,6 +108,22 @@ const test_10_81_2 = (sdp, params) => {
   } else {
     return [];
   }
+};
+
+// Test ST 2110-10 Section 8.1 Test 3 - Source-filter correctly formatted if present
+const test_10_81_3 = sdp => {
+  let lines = splitLines(sdp);
+  let errors = [];
+  for ( let x = 0 ; x < lines.length ; x++ ) {
+    if (lines[x].startsWith('a=source-filter:')) {
+      let sourceFilterMatch = lines[x].match(sourceFilterPattern);
+      if (!sourceFilterMatch) {
+        errors.push(new Error(`Line ${x + 1}: Source-filters must follow the pattern 'a=source-filter: <filter-mode> <filter-spec>' as defined in RFC 4570.`));
+        continue;
+      }
+    }
+  }
+  return errors;
 };
 
 // Test ST2110-10 Section 8.1 Test 1 - Shall have a media-level ts-refclk
@@ -1071,7 +1088,7 @@ const section_10_74 = (sdp, params) => {
 };
 
 const section_10_81 = (sdp, params) => {
-  let tests = [ test_10_81_1, test_10_81_2 ];
+  let tests = [ test_10_81_1, test_10_81_2, test_10_81_3 ];
   return concat(tests.map(t => t(sdp, params)));
 };
 
