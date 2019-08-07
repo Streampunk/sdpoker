@@ -420,6 +420,7 @@ const test_20_71_4 = (sdp, params) => {
   let errors = [];
   let lines = splitLines(sdp);
   let fmtpInStream = true;
+  let isAncillary = false;
   let payloadType = -1;
   let streamCount = 0;
   for ( let x = 0 ; x < lines.length ; x++ ) {
@@ -430,8 +431,16 @@ const test_20_71_4 = (sdp, params) => {
       let videoMatch = lines[x].match(videoPattern);
       payloadType = videoMatch ? +videoMatch[4] : -1;
       fmtpInStream = false;
+      isAncillary = false;
       streamCount++;
       continue;
+    }
+    if (lines[x].startsWith('a=rtpmap') && payloadType >= 0 && !isAncillary) {
+      let rtpmapMatch = lines[x].match(rtpmapPattern);
+      if (rtpmapMatch[2] == 'smpte291') { // ancillary data also has 'm=video'
+        isAncillary = true;
+        continue;
+      }
     }
     if (lines[x].startsWith('a=fmtp') && payloadType >= 0) {
       let fmtpLine = params.whitespace === true ? lines[x] : lines[x].trim() + ' ';
@@ -450,7 +459,7 @@ const test_20_71_4 = (sdp, params) => {
       }
     }
   }
-  if (!fmtpInStream && payloadType >= 0) {
+  if (!fmtpInStream && payloadType >= 0 && !isAncillary) {
     errors.push(new Error (`Line ${lines.length}: Stream ${streamCount} does not have an 'fmtp' attribute.`));
   }
   return errors;
