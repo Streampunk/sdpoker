@@ -16,7 +16,7 @@
 const concat = arrays => Array.prototype.concat.apply([], arrays);
 
 const badEndings = /[^\r]\n|\r[^\n]/;
-const linePattern = /^[a-z]=\S.*$/;
+const linePattern = /^([a-z]=\S.*|s= )$/;
 const letterCheck = /^[vosiuepcbzkatrm].*$/;
 // const spaceCheck = /\s\s/;
 const mustHaves = [ 'v', 'o', 's', 't' ];
