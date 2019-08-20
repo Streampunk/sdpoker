@@ -5,14 +5,14 @@ t=0 0
 a=group:DUP S1a S1b
 m=video 30000 RTP/AVP 100
 c=IN IP4 233.252.0.1/127
-a=source-filter:incl IN IP4 233.252.0.1 198.51.100.1
+a=source-filter: incl IN IP4 233.252.0.1 198.51.100.1
 a=rtpmap:100 MP2T/90000
 a=mid:S1a
 a=ts-refclk:ptp=IEEE1588-2008:39-A7-94-FF-FE-07-CB-D0:37
 a=mediaclk:direct=0
 m=video 30000 RTP/AVP 101
 c=IN IP4 233.252.0.2/127
-a=source-filter:incl IN IP4 233.252.0.2 198.51.100.1
+a=source-filter: incl IN IP4 233.252.0.2 198.51.100.1
 a=rtpmap:101 MP2T/90000
 a=mid:S1b
 a=ts-refclk:ptp=IEEE1588-2008:39-A7-94-FF-FE-07-CB-D0:37
