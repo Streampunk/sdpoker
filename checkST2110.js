@@ -455,7 +455,6 @@ const test_20_71_4 = (sdp, params) => {
     if (lines[x].startsWith('a=rtpmap') && payloadType >= 0 && !isAncillary) {
       let rtpmapMatch = lines[x].match(rtpmapPattern);
       if (!rtpmapMatch) {
-        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, found an 'rtpmap' attribute that is not an acceptable pattern.`));
         continue;
       }
       if (rtpmapMatch[2] == 'smpte291') { // ancillary data also has 'm=video'
