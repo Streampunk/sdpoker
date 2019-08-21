@@ -400,7 +400,7 @@ const test_20_71_3 = sdp => {
       streamCount++;
       continue;
     }
-    if (lines[x].startsWith('a=rtpmap') && payloadType >= 0 && !isAncillary) { // Only process video
+    if (lines[x].startsWith('a=rtpmap') && payloadType >= 0) {
       let rtpmapMatch = lines[x].match(rtpmapPattern);
       if (!rtpmapMatch) {
         errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, found an 'rtpmap' attribute that is not an acceptable pattern.`));
@@ -442,7 +442,7 @@ const test_20_71_4 = (sdp, params) => {
   let streamCount = 0;
   for ( let x = 0 ; x < lines.length ; x++ ) {
     if (lines[x].startsWith('m=')) {
-      if (!fmtpInStream && payloadType >= 0) {
+      if (!fmtpInStream && payloadType >= 0 && !isAncillary) {
         errors.push(new Error (`Line ${x + 1}: Stream ${streamCount} does not have an 'fmtp' attribute.`));
       }
       let videoMatch = lines[x].match(videoPattern);
@@ -454,6 +454,9 @@ const test_20_71_4 = (sdp, params) => {
     }
     if (lines[x].startsWith('a=rtpmap') && payloadType >= 0 && !isAncillary) {
       let rtpmapMatch = lines[x].match(rtpmapPattern);
+      if (!rtpmapMatch) {
+        continue;
+      }
       if (rtpmapMatch[2] == 'smpte291') { // ancillary data also has 'm=video'
         isAncillary = true;
         continue;
