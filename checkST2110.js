@@ -27,6 +27,7 @@ const dupPattern = /[\r\n]m=[\s\S]+a=ssrc-group:DUP|[\r\n]a=group:DUP[\s\S]+m=/;
 const ssrcGroupPattern = /a=ssrc-group:DUP\s+(\d+)\s+(\d+)/;
 const groupPattern = /a=group:DUP\s+(\S+)\s+(\S+)/;
 const ssrcPattern = /a=ssrc:(\d+)\s/;
+const mediaPattern = /m=(\S+)\s+(\d+)(\/\d+)?\s+(RTP\/S?AVP)\s+(\d+)/;
 const videoPattern = /video\s+(\d+)(\/\d+)?\s+(RTP\/S?AVP)\s+(\d+)/;
 const rtpmapPattern = /a=rtpmap:(\d+)\s(\S+)\/(\d+)\s*/;
 const fmtpPattern = /a=fmtp:(\d+)\s+(?:([^\s=;]+)(?:=([^\s;]+))?;\s+)*$/;
@@ -1091,6 +1092,57 @@ const test_21_82_2 = (sdp, params) => {
   return errors;
 };
 
+// Test ST 2110-40 Section 6 Test 1 - RFC 8331, Section 4. Subtype 'smpte291' emplies a 'video' type.
+const test_40_60_1 = sdp => {
+  let errors = [];
+  let lines = splitLines(sdp);
+  let rtpmapInStream = true;
+  let isVideo = false;
+  let mediaType = "";
+  let payloadType = -1;
+  let streamCount = 0;
+  for ( let x = 0 ; x < lines.length ; x++ ) {
+    if (lines[x].startsWith('m=')) {
+      if (!rtpmapInStream && payloadType >= 0) {
+        errors.push(new Error(`Line ${x + 1}: Stream ${streamCount} does not have an 'rtpmap' attribute.`));
+      }
+      let mediaMatch = lines[x].match(mediaPattern);
+      mediaType = mediaMatch ? mediaMatch[1] : -1;
+      payloadType = mediaMatch ? +mediaMatch[5] : -1;
+      rtpmapInStream = false;
+      isVideo = false;
+      streamCount++;
+      continue;
+    }
+    if (lines[x].startsWith('a=rtpmap') && payloadType >= 0 && !isVideo) {
+      let rtpmapMatch = lines[x].match(rtpmapPattern);
+      if (!rtpmapMatch) {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, found an 'rtpmap' attribute that is not an acceptable pattern.`));
+        continue;
+      }
+      if (rtpmapInStream) {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, found more than one 'rtpmap' attribute.`));
+        continue;
+      }
+      rtpmapInStream = true;
+      if (+rtpmapMatch[1] !== payloadType) {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, found an 'rtpmap' attribute with payload type '${rtpmapMatch[1]}' when stream has payload type '${payloadType}'.`));
+      }
+      if (mediaType === 'video' && rtpmapMatch[2] == 'raw') {
+        isVideo = true;
+        continue;
+      }
+      else if (mediaType !== 'video' && rtpmapMatch[2] === 'smpte291') {
+        errors.push(new Error(`Line ${x + 1}: For stream ${streamCount}, media type name must be 'video' given it's sub-type 'smpte291', as per SMPTE ST 2110-40, under the provision of IETF RFC 8331, Section 4.`));
+      }
+    }
+  }
+  if (!rtpmapInStream && payloadType >= 0) {
+    errors.push(new Error(`Line ${lines.length}: Stream ${streamCount} does not have an 'rtpmap' attribute.`));
+  }
+  return errors;
+};
+
 const section_10_74 = (sdp, params) => {
   let tests = [ test_10_74_1 ];
   return concat(tests.map(t => t(sdp, params)));
@@ -1158,6 +1210,11 @@ const section_21_82 = (sdp, params) => {
   return concat(tests.map(t => t(sdp, params)));
 };
 
+const section_40_60 = (sdp, params) => {
+  let tests = [ test_40_60_1 ];
+  return concat(tests.map(t => t(sdp, params)));
+};
+
 // Test ST2110-10 Appendix B Test 1 - Check that the SDP file given is not a straight copy
 const no_copy = sdp => {
   let lines = splitLines(sdp.trim());
@@ -1180,7 +1237,7 @@ const allSections = (sdp, params) => {
     section_10_74, section_10_81, section_10_82, section_10_83,
     section_20_71, section_20_72, section_20_73, section_20_74,
     section_20_75, section_20_76, section_30_62,
-    section_21_81, section_21_82  ];
+    section_21_81, section_21_82, section_40_60  ];
   if (params.noCopy) {
     sections.push(no_copy);
   }
@@ -1201,5 +1258,6 @@ module.exports = {
   section_20_76,
   section_30_62,
   section_21_81,
-  section_21_82
+  section_21_82,
+  section_40_60
 };
