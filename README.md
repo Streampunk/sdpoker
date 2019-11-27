@@ -103,6 +103,7 @@ The parameters of the library are binary flags that match the command line optio
 * `whitespace`: Strict check of adherence to whitespace rules.
 * `should`: As well as shall, also check all should clauses.
 * `noCopy`: Fail obvious copies of the ST 2110-10 SDP example.
+* `noMedia`: Fail SDP files which do not include any media descriptions.
 * `duplicate`: Expect duplicate streams aka ST 2022-7.
 * `videoOnly`: Describes only SMPTE ST 2110-20 streams.
 * `audioOnly`: Describes only SMPTE ST 2110-30 streams.
