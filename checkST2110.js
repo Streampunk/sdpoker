@@ -663,8 +663,8 @@ const test_20_73_2 = (sdp, params) => {
       if (stream.segmented !== '') {
         errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, format parameter 'segmented' is name only, as per SMPTE ST 2110-20 Section 7.3.`));
       }
-      if (typeof stream.interlaced === 'undefined') {
-        errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, format parameter 'segmented' is signalled without 'interlaced' being signalled, as per SMPTE ST 2110-20 Section 7.3.`));
+      if (typeof stream.interlace === 'undefined') {
+        errors.push(new Error(`Line ${stream._line}: For stream ${stream._streamNumber}, format parameter 'segmented' is signalled without 'interlace' being signalled, as per SMPTE ST 2110-20 Section 7.3.`));
       }
     }
   }
