@@ -39,7 +39,7 @@ Install SDPoker as a dependency for the project you are working on:
 Use the module in your project with the following line:
 
 ```javascript
-const { getSDP, checkRFC4566, checkST2110 } = require('sdpoker');
+const { getSDP, checkRFC4566, checkRFC4570, checkST2110 } = require('sdpoker');
 ```
 
 ### Get SDP
@@ -56,7 +56,7 @@ getSDP('http://localhost:3123/sdps/video_stream_1.sdp')
 
 If the `nmos` flag is set to `true`, the SDP file is required to be retrieved over HTTP and must have filename extension `.sdp`.
 
-The value of a fulfilled promise is the contents of an SDP file as a string. SDP files are assumed to be UTF8 character sets. Pass the result into the `checkRFC4566` and `checkST2110` methods.
+The value of a fulfilled promise is the contents of an SDP file as a string. SDP files are assumed to be UTF8 character sets. Pass the result into the `checkRFC4566`, `checkRFC4570` and `checkST2110` methods.
 
 ### Check RFC4566
 
@@ -67,6 +67,23 @@ For example:
 ```javascript
 getSDP('examples/st2110-10.sdp')
   .then(sdp => checkRFC4566(sdp, { should: true }))
+  .then(errs => { if (errs.length > 0) console.log(errs); })
+  .catch(console.error);
+```
+
+The `params` parameter is an object that, when present, can be used to configure the tests. See the [parameters](#parameters) section below for more information.
+
+The return value of the method is an array of [Javascript Errors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error). The array is empty if no errors occurred.
+
+### Check RFC4570
+
+The `checkRFC4570(sdp, params)` takes a string representation of the contents of an SDP file (`sdp`) and runs source-filter tests relevant to SMPTE ST 2110.
+
+For example:
+
+```javascript
+getSDP('examples/st2110-10.sdp')
+  .then(sdp => checkRFC4570(sdp, {}))
   .then(errs => { if (errs.length > 0) console.log(errs); })
   .catch(console.error);
 ```
@@ -123,18 +140,17 @@ let params = {
 };
 ```
 
-Currently, the `whitespace` flag forces a check as to whether the format parameter field (`a=fmtp`) has a whitespace character after the final semicolon on the line. Strict reading of the standard suggests that it should, although the this could also be viewed as ambiguous as the term _carriage return_ can also be interpreted as whitespace. Further white space checks may be added, such as should a space be included between `a=source-filter:` and `incl`.
+Currently, the `whitespace` flag forces a check as to whether the format parameter field (`a=fmtp`) has a whitespace character after the final semicolon on the line. Strict reading of the standard suggests that it should, although the this could also be viewed as ambiguous as the term _carriage return_ can also be interpreted as whitespace.
 
 # Tests
 
-For now, please see the comments in files `checkRFC4566.js` and `checkST2110.js` for a description of the tests. A more formal and separate list may be provided in the future.
+For now, please see the comments in files `checkRFC4566.js`, `checkRFC4570.js` and `checkST2110.js` for a description of the tests. A more formal and separate list may be provided in the future.
 
 # Enhancements
 
 The following items are known deficiencies of SDPoker and may be added in the future:
 
 * Tests for attribute `a=recvonly`
-* Tests for attribute `a=sourcefilter`
 * Testing whether an advertised connection address can be resolved, joined or pinged.
 * Testing whether advertised clocks are available.
 * Testing that, for AES-67 audio streams, the `ptime` attribute matches the sample rate and number of channels.

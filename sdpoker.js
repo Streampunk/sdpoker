@@ -14,7 +14,7 @@
   limitations under the License.
 */
 
-const { getSDP, checkRFC4566, checkST2110 } = require('./index.js');
+const { getSDP, checkRFC4566, checkRFC4570, checkST2110 } = require('./index.js');
 const yargs = require('yargs');
 const { accessSync, R_OK } = require('fs');
 
@@ -78,9 +78,10 @@ const args = yargs
 async function test (args) {
   try {
     let sdp = await getSDP(args._[0], args.nmos);
-    let rfcErrors = checkRFC4566(sdp, args);
+    let rfc4566Errors = checkRFC4566(sdp, args);
+    let rfc4570Errors = checkRFC4570(sdp, args);
     let st2110Errors = checkST2110(sdp, args);
-    let errors = rfcErrors.concat(st2110Errors);
+    let errors = rfc4566Errors.concat(rfc4570Errors, st2110Errors);
     if (errors.length !== 0) {
       console.error(`Found ${errors.length} error(s) in SDP file:`);
       for ( let c in errors ) {
