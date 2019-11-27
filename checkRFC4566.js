@@ -327,8 +327,24 @@ const section_57 = (sdp, params) => {
   return concat(tests.map(s => s(sdp, params)));
 };
 
+// Test if SDP file is missing media descriptions
+const no_media = sdp => {
+  let lines = splitLines(sdp.trim());
+  let hasMedia = false;
+  for ( let x = 0 ; x < lines.length ; x++ ) {
+    if (lines[x].startsWith('m=')) {
+      hasMedia = true;
+      break;
+    }
+  }
+  return hasMedia ? [] : [ new Error('SDP file does not include any "m=" media attributes.') ];
+};
+
 const allSections = (sdp, params) => {
   let sections = [ section_50, section_51, section_52, section_57 ];
+  if (params.noMedia) {
+    sections.push(no_media);
+  }
   return concat(sections.map(s => s(sdp, params)));
 };
 

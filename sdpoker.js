@@ -25,6 +25,7 @@ const args = yargs
   .default('whitespace', false)
   .default('should', false)
   .default('noCopy', true)
+  .default('noMedia', true)
   .default('duplicate', false)
   .default('videoOnly', false)
   .default('audioOnly', false)
@@ -34,8 +35,8 @@ const args = yargs
   .default('multicast', false)
   .default('unicast', false)
   .default('shaping', false)
-  .boolean([ 'nmos', 'checkEndings', 'whitespace', 'should', 'noCopy', 'duplicate',
-    'videoOnly', 'audioOnly', 'channelOrder',
+  .boolean([ 'nmos', 'checkEndings', 'whitespace', 'should', 'noCopy', 'noMedia',
+    'duplicate', 'videoOnly', 'audioOnly', 'channelOrder',
     'useIP4', 'useIP6', 'multicast', 'unicast', 'shaping' ])
   .usage('Check an SDP file for conformance with RFC4566 and SMPTE ST 2110.\n' +
     'Usage: $0 [options] <sdp_file or HTTP URL>')
@@ -44,6 +45,7 @@ const args = yargs
   .describe('whitespace', 'Strict check of adherence to whitespace rules.')
   .describe('should', 'As well as shall, also check all should clauses.')
   .describe('noCopy', 'Fail obvious copies of the ST 2110-10 SDP example')
+  .describe('noMedia', 'Fail SDP files which do not include any media descriptions')
   .describe('duplicate', 'Expect duplicate streams aka ST 2022-7.')
   .describe('videoOnly', 'Describes only SMPTE ST 2110-20 streams.')
   .describe('audioOnly', 'Describes only SMPTE ST 2110-30 streams.')
