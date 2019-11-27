@@ -44,7 +44,7 @@ const { getSDP, checkRFC4566, checkST2110 } = require('sdpoker');
 
 ### Get SDP
 
-The `getSDP(path, nmos)` method returns a native promise to read or download an SDP file from the given path. If the path starts with `http://`, the SDP file is requested from the given address. Otherwise, the path is treated as a file path related to the current working directory.
+The `getSDP(path)` method returns a native promise to read or download an SDP file from the given path. If the path starts with `http://`, the SDP file is requested from the given address. Otherwise, the path is treated as a file path related to the current working directory.
 
 For example:
 
@@ -53,8 +53,6 @@ getSDP('http://localhost:3123/sdps/video_stream_1.sdp')
   .then(console.log)
   .catch(console.error);
 ```
-
-If the `nmos` flag is set to `true`, the SDP file is required to be retrieved over HTTP and must have filename extension `.sdp`.
 
 The value of a fulfilled promise is the contents of an SDP file as a string. SDP files are assumed to be UTF8 character sets. Pass the result into the `checkRFC4566` and `checkST2110` methods.
 
@@ -98,7 +96,6 @@ The return value of the method is an array of [Javascript Errors](https://develo
 
 The parameters of the library are binary flags that match the command line options:
 
-* `nmos`: Check for compliance with NMOS rules.
 * `checkEndings`: Check line endings are CRLF, no other CR/LF.
 * `whitespace`: Strict check of adherence to whitespace rules.
 * `should`: As well as shall, also check all should clauses.
@@ -117,7 +114,6 @@ By default, all flags are `false`. To pass the parameters to the _check_ methods
 
 ```javascript
 let params = {
-  nmos: true,
   duplicate: true,
   multicast: true
 };
