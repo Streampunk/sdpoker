@@ -18,6 +18,7 @@ const fs = require('fs');
 const util = require('util');
 const readFile = util.promisify(fs.readFile);
 const { allSections : checkRFC4566 } = require('./checkRFC4566.js');
+const { allSections : checkRFC4570 } = require('./checkRFC4570.js');
 const { allSections : checkST2110 } = require('./checkST2110.js');
 
 const getSDP = (path, nmos = true) => {
@@ -42,5 +43,6 @@ const getSDP = (path, nmos = true) => {
 module.exports = {
   getSDP,
   checkRFC4566,
+  checkRFC4570,
   checkST2110
 };

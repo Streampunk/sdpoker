@@ -19,7 +19,6 @@ const concat = arrays => Array.prototype.concat.apply([], arrays);
 const mediaclkPattern = /[\r\n]a=mediaclk/;
 const mediaclkTypePattern = /[\r\n]a=mediaclk[^\s=]+/g;
 const mediaclkDirectPattern = /[\r\n]a=mediaclk:direct=\d+\s+/g;
-const sourceFilterPattern = /a=source-filter:\s(incl|excl)/;
 const tsrefclkPattern = /[\r\n]a=ts-refclk/;
 const ptpPattern = /traceable|((([0-9a-fA-F]{2}-){7}[0-9a-fA-F]{2})(:(\d+|domain-name=\S+))?)/;
 const macPattern = /(([0-9a-fA-F]{2}-){5}[0-9a-fA-F]{2})/;
@@ -108,22 +107,6 @@ const test_10_81_2 = (sdp, params) => {
   } else {
     return [];
   }
-};
-
-// Test ST 2110-10 Section 8.1 Test 3 - Source-filter correctly formatted if present
-const test_10_81_3 = sdp => {
-  let lines = splitLines(sdp);
-  let errors = [];
-  for ( let x = 0 ; x < lines.length ; x++ ) {
-    if (lines[x].startsWith('a=source-filter:')) {
-      let sourceFilterMatch = lines[x].match(sourceFilterPattern);
-      if (!sourceFilterMatch) {
-        errors.push(new Error(`Line ${x + 1}: Source-filters must follow the pattern 'a=source-filter: <filter-mode> <filter-spec>' as defined in RFC 4570.`));
-        continue;
-      }
-    }
-  }
-  return errors;
 };
 
 // Test ST2110-10 Section 8.1 Test 1 - Shall have a media-level ts-refclk
@@ -1097,7 +1080,7 @@ const section_10_74 = (sdp, params) => {
 };
 
 const section_10_81 = (sdp, params) => {
-  let tests = [ test_10_81_1, test_10_81_2, test_10_81_3 ];
+  let tests = [ test_10_81_1, test_10_81_2 ];
   return concat(tests.map(t => t(sdp, params)));
 };
 
