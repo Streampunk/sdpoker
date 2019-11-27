@@ -20,7 +20,7 @@ const readFile = util.promisify(fs.readFile);
 const { allSections : checkRFC4566 } = require('./checkRFC4566.js');
 const { allSections : checkST2110 } = require('./checkST2110.js');
 
-const getSDP = (path, nmos = true) => {
+const getSDP = (path) => {
   return (path.startsWith('http')) ?
     request({
       url: path,
@@ -30,10 +30,7 @@ const getSDP = (path, nmos = true) => {
         return Promise.reject(new Error(
           `Media type (MIME type/Content-Type) of SDP file is '${res.headers['content-type']}' and not signalled as 'applicatio/sdp' as required in RFC 4566 Section 5.`));
       } else {
-        return (nmos && !path.endsWith('.sdp')) ?
-          Promise.reject(new Error(
-            `Resource name of SDP file '${path.split('/').slice(-1)[0]}' does not end in '.sdp' as required by NMOS Section 2.3.`)) :
-          Promise.resolve(res.body);
+        return Promise.resolve(res.body);
       }
     }, e => Promise.reject(e)) :
     readFile(path, 'utf8');

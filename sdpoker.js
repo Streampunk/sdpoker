@@ -20,7 +20,6 @@ const { accessSync, R_OK } = require('fs');
 
 const args = yargs
   .help('help')
-  .default('nmos', true)
   .default('checkEndings', false)
   .default('whitespace', false)
   .default('should', false)
@@ -34,12 +33,11 @@ const args = yargs
   .default('multicast', false)
   .default('unicast', false)
   .default('shaping', false)
-  .boolean([ 'nmos', 'checkEndings', 'whitespace', 'should', 'noCopy', 'duplicate',
+  .boolean([ 'checkEndings', 'whitespace', 'should', 'noCopy', 'duplicate',
     'videoOnly', 'audioOnly', 'channelOrder',
     'useIP4', 'useIP6', 'multicast', 'unicast', 'shaping' ])
   .usage('Check an SDP file for conformance with RFC4566 and SMPTE ST 2110.\n' +
     'Usage: $0 [options] <sdp_file or HTTP URL>')
-  .describe('nmos', 'Check for compliance with NMOS rules.')
   .describe('checkEndings', 'Check line endings are CRLF, no other CR/LF.')
   .describe('whitespace', 'Strict check of adherence to whitespace rules.')
   .describe('should', 'As well as shall, also check all should clauses.')
@@ -77,7 +75,7 @@ const args = yargs
 
 async function test (args) {
   try {
-    let sdp = await getSDP(args._[0], args.nmos);
+    let sdp = await getSDP(args._[0]);
     let rfcErrors = checkRFC4566(sdp, args);
     let st2110Errors = checkST2110(sdp, args);
     let errors = rfcErrors.concat(st2110Errors);
