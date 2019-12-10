@@ -21,7 +21,7 @@ const mediaclkTypePattern = /[\r\n]a=mediaclk[^\s=]+/g;
 const mediaclkDirectPattern = /[\r\n]a=mediaclk:direct=\d+\s+/g;
 const sourceFilterPattern = /a=source-filter:\s(incl|excl)/;
 const tsrefclkPattern = /[\r\n]a=ts-refclk/;
-const ptpPattern = /traceable|((([0-9a-fA-F]{2}-){7}[0-9a-fA-F]{2})(:(\d+|domain-name=\S+))?)/;
+const ptpPattern = /traceable|((([0-9A-F]{2}-){7}[0-9A-F]{2})(:(\d+))?)$/;
 const macPattern = /(([0-9a-fA-F]{2}-){5}[0-9a-fA-F]{2})/;
 const dupPattern = /[\r\n]m=[\s\S]+a=ssrc-group:DUP|[\r\n]a=group:DUP[\s\S]+m=/;
 const ssrcGroupPattern = /a=ssrc-group:DUP\s+(\d+)\s+(\d+)/;
@@ -180,7 +180,7 @@ const test_10_82_3 = sdp => {
         continue; // no longer acceptable form
       }
       if (!ptpDetails.startsWith('IEEE1588-2008:')) {
-        errors.push(new Error(`Line ${x + 1}: The only supported PTP versions are 'IEEE1588-2008' and 'traceable', as per SMPTE ST 2110-10 Section 8.2.`));
+        errors.push(new Error(`Line ${x + 1}: The only supported PTP version is 'IEEE1588-2008', as per SMPTE ST 2110-10 Section 8.2.`));
         continue;
       }
       if (!ptpPattern.test(ptpDetails.slice(14))) {
@@ -188,16 +188,10 @@ const test_10_82_3 = sdp => {
         continue;
       }
       let ptpMatch = ptpDetails.slice(14).match(ptpPattern);
-      if (!ptpMatch[4] && ptpDetails.endsWith(':')) {
-        errors.push(new Error(`Line ${x + 1}: Where no PTP domain is specified, 'ptp-version' cannot end with a ':', as per RFC 7273 Section 4.8.`));
-        continue;
-      }
-      if (ptpMatch[4]) {
-        if (!ptpMatch[4].startsWith('domain-name=')) {
-          let domainNmbr = +ptpMatch[4];
-          if (domainNmbr < 0 || domainNmbr > 127) {
-            errors.push(new Error(`Line ${x + 1}: PTP domain number must be a value between 0 and 127 inclusive, as per RFC 7273 Section 4.8.`));
-          }
+      if (ptpMatch[5]) {
+        let domainNmbr = +ptpMatch[5];
+        if (domainNmbr < 0 || domainNmbr > 127) {
+          errors.push(new Error(`Line ${x + 1}: PTP domain number must be a value between 0 and 127 inclusive, as per RFC 7273 Section 4.8.`));
         }
       }
     }
