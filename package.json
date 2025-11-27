@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "babel-eslint": "^8.2.2",
-    "eslint": "^4.18.2",
+    "eslint": "^9.39.1",
     "eslint-plugin-html": "^3.2.2",
     "tape": "^4.8.0"
   },
